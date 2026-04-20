@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Electrobtech – Campus Assessment 2026</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0d1b6e; --blue: #1a3aad; --sky: #4e8ef7;
+  --orange: #ff6600; --orange2: #ff8c42;
+  --light: #f0f4ff; --white: #ffffff; --gray: #6b7280;
+  --pass: #16a34a; --fail: #dc2626; --bg: #eef2ff;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);min-height:100vh;}
+h1,h2,h3,h4{font-family:'Exo 2',sans-serif;}
+
+/* HEADER */
+.site-header{background:linear-gradient(135deg,var(--navy),var(--blue));padding:14px 28px;display:flex;align-items:center;gap:16px;box-shadow:0 4px 20px rgba(13,27,110,.5);}
+.logo-img{height:52px;width:auto;border-radius:6px;}
+.logo-text h1{color:#fff;font-size:1.7rem;font-weight:800;letter-spacing:.5px;line-height:1.1;}
+.logo-text p{color:#a5c0ff;font-size:.72rem;letter-spacing:3px;text-transform:uppercase;}
+.logo-text span{color:var(--orange);font-size:.72rem;font-weight:700;}
+.header-right{margin-left:auto;text-align:right;}
+.header-right p{color:#a5c0ff;font-size:.8rem;}
+.header-right strong{color:#fff;font-size:1rem;}
+
+/* STICKY TIMER */
+#stickyTimer{display:none;position:sticky;top:0;z-index:200;background:var(--navy);color:#fff;padding:10px 28px;text-align:center;font-family:'Exo 2',sans-serif;font-size:1rem;font-weight:700;box-shadow:0 2px 12px rgba(0,0,0,.4);}
+#stickyTimer .timer-val{color:var(--orange);font-size:1.35rem;}
+#stickyTimer.urgent{background:#b91c1c;animation:pulse .8s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+
+/* LAYOUT */
+.container{max-width:860px;margin:0 auto;padding:28px 14px 70px;}
+.card{background:var(--white);border-radius:14px;padding:26px 30px;margin-bottom:20px;box-shadow:0 4px 24px rgba(13,27,110,.1);}
+
+/* INSTRUCTIONS */
+.instr-card{background:#fffbeb;border:1.5px solid #fbbf24;border-radius:10px;padding:16px 20px;margin-bottom:20px;}
+.instr-card ul{list-style:none;padding:0;}
+.instr-card li{margin-bottom:5px;font-size:.87rem;color:#78350f;}
+.instr-card li::before{content:"⚠️ ";}
+
+/* FORM */
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;color:var(--navy);font-weight:600;margin-bottom:6px;font-size:.88rem;}
+.form-group input,.form-group select{width:100%;padding:11px 15px;border:2px solid #c7d2fe;border-radius:8px;font-size:.97rem;outline:none;font-family:'DM Sans',sans-serif;transition:border .2s;background:#fff;}
+.form-group input:focus,.form-group select:focus{border-color:var(--blue);}
+
+/* BUTTON */
+.btn{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border:none;padding:13px 34px;font-size:1rem;font-weight:700;font-family:'Exo 2',sans-serif;border-radius:9px;cursor:pointer;box-shadow:0 4px 16px rgba(255,102,0,.35);transition:transform .15s,box-shadow .15s;}
+.btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(255,102,0,.45);}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.btn-nav{background:#fff;color:var(--navy);border:2px solid #c7d2fe;padding:11px 24px;font-size:.92rem;font-weight:700;font-family:'Exo 2',sans-serif;border-radius:9px;cursor:pointer;transition:all .15s;}
+.btn-nav:hover{border-color:var(--blue);background:var(--light);}
+.btn-nav:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ONE-BY-ONE QUESTION UI */
+.q-shell{background:var(--white);border-radius:16px;box-shadow:0 6px 32px rgba(13,27,110,.12);padding:0;overflow:hidden;margin-bottom:18px;}
+.q-topbar{background:linear-gradient(135deg,var(--navy),var(--blue));padding:14px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.q-badge{background:var(--orange);color:#fff;padding:4px 14px;border-radius:20px;font-size:.78rem;font-weight:700;}
+.q-counter{color:#a5c0ff;font-size:.85rem;margin-left:auto;}
+.q-body{padding:28px 28px 20px;}
+.q-text{color:var(--navy);font-weight:700;font-size:1.05rem;line-height:1.65;margin-bottom:22px;}
+.q-options{display:flex;flex-direction:column;gap:10px;}
+.opt-label{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:10px;cursor:pointer;border:2px solid #e0e7ff;background:#f8faff;transition:all .18s;font-size:.95rem;color:#374151;}
+.opt-label:hover{border-color:var(--blue);background:#eff4ff;}
+.opt-label.selected{border-color:var(--orange);background:#fff5ef;color:var(--navy);font-weight:600;}
+.opt-key{width:26px;height:26px;border-radius:50%;background:#e0e7ff;color:var(--navy);display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0;}
+.opt-label.selected .opt-key{background:var(--orange);color:#fff;}
+
+/* NAV ROW */
+.q-nav{padding:16px 24px 20px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #e0e7ff;flex-wrap:wrap;gap:10px;}
+.q-dots{display:flex;gap:5px;flex-wrap:wrap;max-width:420px;}
+.dot{width:14px;height:14px;border-radius:50%;background:#e0e7ff;cursor:pointer;transition:all .2s;border:2px solid transparent;}
+.dot.answered{background:var(--pass);}
+.dot.current{border-color:var(--orange);transform:scale(1.25);}
+.dot:hover{border-color:var(--blue);}
+
+/* PROGRESS */
+.progress-wrap{background:#fff;border-radius:12px;padding:12px 22px;margin-bottom:16px;box-shadow:0 2px 12px rgba(13,27,110,.07);}
+.progress-info{display:flex;justify-content:space-between;margin-bottom:6px;font-size:.83rem;color:var(--gray);}
+.progress-bar{height:7px;background:#e0e7ff;border-radius:20px;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--sky));border-radius:20px;transition:width .3s;}
+
+/* SECTION TRANSITION */
+.section-ready{text-align:center;padding:44px 20px;}
+.section-ready .icon{font-size:4rem;margin-bottom:16px;}
+.section-ready h2{color:var(--navy);font-size:1.8rem;margin-bottom:10px;}
+.section-choices{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:14px;margin:24px 0;}
+.choice-btn{background:#fff;border:2px solid #c7d2fe;border-radius:12px;padding:22px 14px;cursor:pointer;text-align:center;font-family:'Exo 2',sans-serif;font-weight:700;font-size:1rem;color:var(--navy);transition:all .2s;}
+.choice-btn:hover{border-color:var(--orange);background:#fff7f0;transform:translateY(-3px);box-shadow:0 8px 24px rgba(255,102,0,.2);}
+.choice-btn .cicon{font-size:2.2rem;margin-bottom:8px;}
+.choice-btn span{display:block;font-size:.75rem;color:var(--gray);font-weight:500;margin-top:4px;}
+
+/* STEPS */
+.steps{display:flex;justify-content:center;margin-bottom:24px;}
+.step-wrap{display:flex;flex-direction:column;align-items:center;}
+.step-dot{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Exo 2',sans-serif;font-weight:700;font-size:.8rem;}
+.step-dot.done{background:var(--pass);color:#fff;}
+.step-dot.active{background:var(--orange);color:#fff;}
+.step-dot.pending{background:#e0e7ff;color:var(--gray);}
+.step-line{width:48px;height:3px;background:#e0e7ff;margin-top:16px;}
+.step-line.done{background:var(--pass);}
+.step-label{font-size:.68rem;color:var(--gray);margin-top:4px;font-weight:600;}
+
+/* RESULT */
+#resultSection{display:none;}
+.result-banner{text-align:center;padding:36px 24px;border-radius:16px;margin-bottom:22px;}
+.result-banner.selected{background:linear-gradient(135deg,#dcfce7,#bbf7d0);border:2.5px solid #16a34a;box-shadow:0 8px 32px rgba(22,163,74,.18);}
+.result-banner.rejected{background:linear-gradient(135deg,#fee2e2,#fecaca);border:2.5px solid #dc2626;box-shadow:0 8px 32px rgba(220,38,38,.18);}
+.result-banner h2{font-size:2rem;margin-bottom:8px;}
+.result-banner.selected h2{color:#15803d;}
+.result-banner.rejected h2{color:#b91c1c;}
+.result-pct{display:inline-block;margin-top:14px;padding:10px 32px;border-radius:30px;font-size:1.5rem;font-weight:800;font-family:'Exo 2',sans-serif;}
+.selected .result-pct{background:#15803d;color:#fff;}
+.rejected .result-pct{background:#b91c1c;color:#fff;}
+.score-breakdown{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin:20px 0;}
+@media(max-width:600px){.score-breakdown{grid-template-columns:1fr;}}
+.sb-card{background:#fff;border-radius:12px;padding:18px 14px;text-align:center;box-shadow:0 2px 12px rgba(13,27,110,.08);border:1.5px solid #e0e7ff;}
+.sb-score{font-size:1.8rem;font-weight:800;color:var(--navy);font-family:'Exo 2',sans-serif;}
+.sb-label{font-size:.75rem;color:var(--gray);margin-top:4px;}
+.sb-bar{height:7px;background:#e0e7ff;border-radius:10px;margin-top:10px;overflow:hidden;}
+.sb-fill{height:100%;border-radius:10px;}
+.sb-status{font-size:.78rem;font-weight:700;margin-top:6px;}
+.sb-status.pass{color:var(--pass);}
+.sb-status.fail{color:var(--fail);}
+.result-note{background:#f0f4ff;border-radius:10px;padding:18px 22px;margin-top:18px;color:var(--navy);font-size:.9rem;text-align:center;line-height:1.7;}
+.result-note.selected-note{background:#f0fdf4;border:1px solid #bbf7d0;}
+.result-note.rejected-note{background:#fff7f0;border:1px solid #fde68a;}
+
+/* GD NOTICE */
+.gd-notice{background:linear-gradient(135deg,#ede9fe,#ddd6fe);border:1.5px solid #7c3aed;border-radius:10px;padding:16px 20px;margin-top:16px;text-align:center;}
+.gd-notice h4{color:#6d28d9;font-size:1rem;margin-bottom:6px;}
+.gd-notice p{color:#5b21b6;font-size:.88rem;line-height:1.6;}
+
+/* LOADING */
+#loadingOverlay{display:none;position:fixed;inset:0;background:rgba(13,27,110,.78);z-index:9999;align-items:center;justify-content:center;flex-direction:column;color:#fff;}
+#loadingOverlay.show{display:flex;}
+.spinner{width:50px;height:50px;border:5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:14px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* FOOTER */
+.footer-strip{background:var(--navy);color:#a5c0ff;text-align:center;padding:13px;font-size:.78rem;}
+.footer-strip strong{color:var(--orange);}
+
+@media(max-width:600px){
+  .card,.q-body{padding:18px 14px;}
+  .site-header{padding:10px 14px;gap:10px;}
+  .logo-img{height:40px;}
+  .logo-text h1{font-size:1.3rem;}
+  .q-nav{padding:12px 14px 16px;}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="site-header">
+  <img src="./Logo.jpeg" class="logo-img" alt="Electrobtech" onerror="this.style.display='none'" height="100px" width="200px">
+  
+  <div class="header-right">
+    <p>Technical Round</p>
+    <strong>Campus Hiring 2026</strong>
+  </div>
+</div>
+
+<!-- GLOBAL STICKY TIMER -->
+<div id="stickyTimer">
+  ⏱ Total Time Remaining: <span class="timer-val" id="timerDisplay">60:00</span>
+  &nbsp;|&nbsp; <span id="timerSection">—</span>
+</div>
+
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <p id="loadingMsg">Please wait…</p>
+</div>
+
+<div class="container">
+
+  <!-- ══ REGISTRATION ══ -->
+  <div id="regSection">
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2.6rem;margin-bottom:8px;">🎓</div>
+      <h2 style="font-size:1.5rem;color:var(--navy);">Electrobtech Technical Assessment</h2>
+      <p style="color:var(--gray);margin-top:8px;font-size:.92rem;">
+        Campus Hiring 2026 &nbsp;|&nbsp; 2 Sections &nbsp;|&nbsp; 50 Total Questions<br>
+        <strong style="color:var(--orange);">Section 1: Aptitude (30 Qs) &nbsp;|&nbsp; Section 2: Technical (20 Qs) &nbsp;|&nbsp; Total: 60 Minutes</strong>
+      </p>
+    </div>
+
+    <div class="instr-card">
+      <strong style="color:#92400e;display:block;margin-bottom:8px;">📋 Instructions — Read carefully</strong>
+      <ul>
+        <li>Do NOT refresh or close the browser during the test.</li>
+        <li>Section 1 covers Quantitative, Verbal &amp; Reasoning — 30 questions.</li>
+        <li>After Section 1, choose one Technical Domain for Section 2 — 20 questions.</li>
+        <li>Total time for both sections combined is <strong>60 minutes</strong>. The timer does NOT reset between sections.</li>
+        <li>Each question has only one correct answer. No negative marking.</li>
+        <li>Use Prev / Next buttons or the dot palette to navigate questions.</li>
+        
+        <li>Tab switching is monitored — 3 violations will auto-submit your test.</li>
+        <li>Do not share your screen or allow others to view your test.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>📝 Candidate Registration</h2>
+      <div class="form-group"><label>Full Name *</label><input type="text" id="nameInput" placeholder="Enter your full name" autocomplete="off"></div>
+      <div class="form-group"><label>Email Address *</label><input type="email" id="emailInput" placeholder="example@college.edu" autocomplete="off"></div>
+      <div class="form-group"><label>Phone Number *</label><input type="tel" id="phoneInput" placeholder="10-digit mobile number" maxlength="10" autocomplete="off"></div>
+      <div class="form-group"><label>College / Institution *</label>
+        <select id="collegeInput">
+          <option value="">-- Select Your College --</option>
+          <option>Presidency College</option>
+          <option>The Oxford College of Engineering</option>
+          <option>T John Institute Of Technology</option>
+          <option>BMS College of Commerce and Management</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Department *</label>
+        <select id="deptInput">
+          <option value="">-- Select Department --</option>
+          <option>B.E/B.Tech</option><option>B.Sc</option><option>B.C.A</option>
+          <option>M.C.A</option><option>M.B.A</option><option>M.Sc</option><option>Other</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Year of Study *</label>
+        <select id="yearInput">
+          <option value="">-- Select Year --</option>
+          <option>3rd Year</option><option>4th Year</option><option>Final Year (PG)</option>
+        </select>
+      </div>
+      <button class="btn" onclick="startTest()">🚀 Begin Assessment</button>
+    </div>
+  </div>
+
+  <!-- ══ SECTION 1 ══ -->
+  <div id="section1Div" style="display:none;">
+    <div class="steps">
+      <div class="step-wrap"><div class="step-dot active">1</div><div class="step-label">Aptitude</div></div>
+      <div style="display:flex;align-items:center;"><div class="step-line"></div></div>
+      <div class="step-wrap"><div class="step-dot pending">2</div><div class="step-label">Technical</div></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-info"><span id="s1progressText">Question 1 of 30</span><span id="s1progressPct">0 answered</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="s1progressFill" style="width:0%"></div></div>
+    </div>
+    <div id="s1QuestionArea"></div>
+    <div style="text-align:center;margin-top:8px;">
+      <button class="btn" onclick="submitSection1()">✅ Submit Section 1 &amp; Choose Domain</button>
+    </div>
+  </div>
+
+  <!-- ══ TRANSITION ══ -->
+  <div id="transitionDiv" style="display:none;">
+    <div class="card section-ready">
+      <div class="icon">🎯</div>
+      <h2>Section 1 Complete!</h2>
+      <p style="color:var(--gray);margin-bottom:6px;">Great work! Now choose your <strong>Technical Domain</strong> for Section 2.</p>
+      <p style="color:var(--orange);font-weight:700;font-size:.9rem;">⏱ Timer is still running — choose quickly!</p>
+      <div class="section-choices">
+        <div class="choice-btn" onclick="startSection2('Java')"><div class="cicon">☕</div>Java<span>20 Questions</span></div>
+        <div class="choice-btn" onclick="startSection2('Python')"><div class="cicon">🐍</div>Python<span>20 Questions</span></div>
+        <div class="choice-btn" onclick="startSection2('C')"><div class="cicon">⚙️</div>C Programming<span>20 Questions</span></div>
+        <div class="choice-btn" onclick="startSection2('AI')"><div class="cicon">🤖</div>ML &amp; AI<span>20 Questions</span></div>
+        <div class="choice-btn" onclick="startSection2('DataAnalytics')"><div class="cicon">📊</div>Data Analytics<span>20 Questions</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SECTION 2 ══ -->
+  <div id="section2Div" style="display:none;">
+    <div class="steps">
+      <div class="step-wrap"><div class="step-dot done">✓</div><div class="step-label">Aptitude</div></div>
+      <div style="display:flex;align-items:center;"><div class="step-line done"></div></div>
+      <div class="step-wrap"><div class="step-dot active">2</div><div class="step-label">Technical</div></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-info"><span id="s2progressText">Question 1 of 20</span><span id="s2progressPct">0 answered</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="s2progressFill" style="width:0%"></div></div>
+    </div>
+    <div id="s2QuestionArea"></div>
+    <div style="text-align:center;margin-top:8px;">
+      <button class="btn" onclick="submitFinal()">✅ Submit &amp; Finish Test</button>
+    </div>
+  </div>
+
+  <!-- ══ RESULT ══ -->
+  <div id="resultSection">
+    <div id="studentResultBanner"></div>
+    <div class="card" style="text-align:center;background:linear-gradient(135deg,#eff6ff,#dbeafe);padding:24px;">
+      <p style="color:var(--gray);font-size:.88rem;">
+        Thank you for appearing in the <strong>Electrobtech Innovations Pvt Ltd</strong> Technical Assessment.<br>
+        Your responses have been recorded securely.
+      </p>
+      <div id="studentResultNote" class="result-note" style="margin-top:14px;"></div>
+      <p style="margin-top:16px;color:var(--gray);font-size:.8rem;">You may close this window. Do not refresh.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer-strip">
+  © 2026 <strong>Electrobtech Innovations Pvt Ltd</strong> &nbsp;|&nbsp; Way For Creations &nbsp;|&nbsp; info@electrobtech.in
+</div>
+
+<script>
+// ═══ FIREBASE ═══
+const firebaseConfig = {
+  apiKey: "AIzaSyAHq9I5te9NPTXTIP0U1dJwmE8b0All0Fw",
+  authDomain: "test-mode-aa4f8.firebaseapp.com",
+  projectId: "test-mode-aa4f8",
+  storageBucket: "test-mode-aa4f8.appspot.com",
+  messagingSenderId: "769528632193",
+  appId: "1:769528632193:web:3b3d1dcb1009c6f7b38e80"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ═══ STATE ═══
+let candidateInfo   = {};
+let section1Answers = {};
+let section2Answers = {};
+let chosenDomain    = "";
+let s1Score         = 0;
+let timerInterval   = null;
+let totalTimeLeft   = 60 * 60;
+let testStarted     = false;
+let currentSection  = "section1";
+let tabSwitchCount  = 0;
+let s1CurrentQ      = 0;
+let s2CurrentQ      = 0;
+
+// ═══ DOMAIN META ═══
+const domainLabels = { Java:"☕ Java", Python:"🐍 Python", C:"⚙️ C Programming", AI:"🤖 ML & AI", DataAnalytics:"📊 Data Analytics" };
+const domainIcons  = { Java:"☕", Python:"🐍", C:"⚙️", AI:"🤖", DataAnalytics:"📊" };
+
+// ═══════════════════════════════
+//  APTITUDE QUESTIONS (30)
+// ═══════════════════════════════
+const aptitudeQuestions = [
+  {cat:"Quantitative",q:"If a train travels 360 km in 4 hours, what is its speed in km/h?",options:["80","90","100","70"],answer:1},
+  {cat:"Quantitative",q:"What is 15% of 240?",options:["36","34","38","32"],answer:0},
+  {cat:"Quantitative",q:"A shopkeeper buys an item for ₹500 and sells it for ₹625. What is the profit percentage?",options:["20%","25%","30%","15%"],answer:1},
+  {cat:"Quantitative",q:"If 8 men can do a work in 12 days, how many days will 16 men take to do the same work?",options:["4","6","8","10"],answer:1},
+  {cat:"Quantitative",q:"What is the simple interest on ₹2000 at 5% per annum for 3 years?",options:["₹200","₹300","₹250","₹350"],answer:1},
+  {cat:"Quantitative",q:"The average of 5 numbers is 20. If one number is removed, the average becomes 18. What is the removed number?",options:["28","30","26","24"],answer:0},
+  {cat:"Quantitative",q:"If 3x + 7 = 22, what is the value of x?",options:["4","5","6","3"],answer:1},
+  {cat:"Quantitative",q:"A pipe fills a tank in 6 hours. Another pipe empties it in 10 hours. If both are open, how many hours to fill?",options:["12","15","18","20"],answer:1},
+  {cat:"Quantitative",q:"What is the LCM of 12, 18, and 24?",options:["36","48","72","60"],answer:2},
+  {cat:"Quantitative",q:"A car covers 200 km at 50 km/h and 300 km at 60 km/h. What is the average speed for the whole journey?",options:["54.5 km/h","55.6 km/h","56 km/h","53 km/h"],answer:1},
+  {cat:"Verbal",q:"Choose the correct synonym of 'Eloquent':",options:["Dumb","Articulate","Confused","Silent"],answer:1},
+  {cat:"Verbal",q:"Select the correct antonym of 'Benevolent':",options:["Kind","Generous","Malevolent","Helpful"],answer:2},
+  {cat:"Verbal",q:"Fill in the blank: She was so tired that she could _____ keep her eyes open.",options:["hardly","already","nearly","barely"],answer:0},
+  {cat:"Verbal",q:"Identify the correctly spelled word:",options:["Accomodation","Accommodation","Acommodation","Acomodation"],answer:1},
+  {cat:"Verbal",q:"Choose the correct meaning of the idiom: 'Break the ice'",options:["Destroy something","Start a conversation","End a meeting","Cause a problem"],answer:1},
+  {cat:"Verbal",q:"Which sentence is grammatically correct?",options:["He go to school everyday.","He goes to school everyday.","He going to school everyday.","He gone to school everyday."],answer:1},
+  {cat:"Verbal",q:"The word 'Gregarious' means:",options:["Lonely","Sociable","Angry","Lazy"],answer:1},
+  {cat:"Verbal",q:"Select the word most nearly opposite in meaning to 'Zenith':",options:["Peak","Nadir","Summit","Top"],answer:1},
+  {cat:"Verbal",q:"Choose the correct passive voice: 'The teacher teaches the students.'",options:["The students were taught by the teacher.","The students are taught by the teacher.","The students have been taught by the teacher.","The students taught the teacher."],answer:1},
+  {cat:"Verbal",q:"One word substitution: 'A person who compiles a dictionary'",options:["Lexicographer","Cartographer","Calligrapher","Bibliographer"],answer:0},
+  {cat:"Reasoning",q:"Find the odd one out: 2, 3, 5, 7, 9, 11",options:["2","3","9","11"],answer:2},
+  {cat:"Reasoning",q:"If MANGO is coded as NBOHP, what is the code for APPLE?",options:["BQQMF","CQQMG","BPPME","BQQNF"],answer:0},
+  {cat:"Reasoning",q:"Complete the series: 1, 4, 9, 16, 25, ?",options:["30","36","35","49"],answer:1},
+  {cat:"Reasoning",q:"In a row, Ravi is 8th from the left and 14th from the right. How many students are in the row?",options:["21","20","22","23"],answer:0},
+  {cat:"Reasoning",q:"A is the brother of B. C is the mother of A. D is the father of C. What is D to B?",options:["Grandfather","Uncle","Father","Grandmother"],answer:0},
+  {cat:"Reasoning",q:"Which number replaces the question mark? 6, 11, 21, 36, 56, ?",options:["91","81","71","61"],answer:1},
+  {cat:"Reasoning",q:"Pointing to a woman, a man says 'Her mother is the only daughter of my mother'. How is the man related to the woman?",options:["Uncle","Brother","Father","Grandfather"],answer:2},
+  {cat:"Reasoning",q:"If all Roses are Flowers and some Flowers are Red, which conclusion is definitely true?",options:["Some Roses are Red","All Flowers are Roses","Some Roses are Flowers","No Rose is Red"],answer:2},
+  {cat:"Reasoning",q:"Complete the analogy: Book : Library :: Painting : ?",options:["Museum","Artist","Canvas","Gallery"],answer:3},
+  {cat:"Reasoning",q:"Find the missing number: 3, 6, 11, 18, 27, ?",options:["36","38","40","42"],answer:1},
+];
+
+// ═══════════════════════════════
+//  TECHNICAL QUESTIONS (20 each)
+// ═══════════════════════════════
+const technicalQuestions = {
+  Java:[
+    {q:"Output: int x=5; System.out.println(x++ + ++x);",options:["11","12","13","10"],answer:1},
+    {q:"Error? int x; System.out.println(x);",options:["No error","Runtime error","Compile-time error","Logical error"],answer:2},
+    {q:'Output: System.out.println("5"+3+2);',options:["532","10","55","Error"],answer:0},
+    {q:'Output: System.out.println(5+2+"3");',options:["73","523","10","Error"],answer:0},
+    {q:"Which keyword prevents inheritance?",options:["static","final","private","abstract"],answer:1},
+    {q:'Output: boolean b=false; if(b=true) System.out.println("Hi");',options:["Hi","Nothing","Error","False"],answer:0},
+    {q:"Output: System.out.println(10/0.0);",options:["Infinity","Error","NaN","0"],answer:0},
+    {q:"Which is NOT an OOP concept?",options:["Encapsulation","Polymorphism","Compilation","Inheritance"],answer:2},
+    {q:"Output: int x=10; System.out.println(x--);",options:["10","9","11","Error"],answer:0},
+    {q:"Default value of int in Java?",options:["null","0","undefined","1"],answer:1},
+    {q:"Which interface is used for sorting?",options:["Runnable","Comparable","Cloneable","Serializable"],answer:1},
+    {q:'Output: System.out.println("A"+1+2);',options:["A12","A3","3A","Error"],answer:0},
+    {q:"What does super keyword do?",options:["Calls child class","Calls parent class method/constructor","Creates object","None"],answer:1},
+    {q:"Output: Math.max(10,20)",options:["10","20","30","0"],answer:1},
+    {q:"Which collection is thread-safe?",options:["ArrayList","Vector","HashSet","TreeSet"],answer:1},
+    {q:"Exception when dividing integer by zero?",options:["NullPointerException","ArithmeticException","IOException","FormatException"],answer:1},
+    {q:"What is JVM?",options:["Java Virtual Machine","Java Variable Method","Joint VM","None"],answer:0},
+    {q:"Which collection allows duplicates?",options:["Set","List","Map keys","TreeSet"],answer:1},
+    {q:"Output: System.out.println(true&&false||true);",options:["true","false","error","null"],answer:0},
+    {q:"Which is parent class of all classes in Java?",options:["Main","Object","Base","Root"],answer:1},
+  ],
+  Python:[
+    {q:"Output: print(2**3)",options:["6","8","9","Error"],answer:1},
+    {q:"Output: print(10//3)",options:["3","3.3","4","Error"],answer:0},
+    {q:"Output: print(bool([]))",options:["True","False","None","Error"],answer:1},
+    {q:"Output: print(type({}))",options:["list","dict","set","tuple"],answer:1},
+    {q:"Output: print('abc'*2)",options:["abcabc","2abc","Error","abc2"],answer:0},
+    {q:"Output: print(len([1,2,3]))",options:["2","3","4","Error"],answer:1},
+    {q:"Which data type is immutable?",options:["List","Set","Tuple","Dict"],answer:2},
+    {q:"Output: print(3 in [1,2,3])",options:["True","False","Error","None"],answer:0},
+    {q:"What is a lambda?",options:["Named function","Anonymous function","Loop","Class"],answer:1},
+    {q:"Output: print(range(3))",options:["[0,1,2]","range(0,3)","[1,2,3]","Error"],answer:1},
+    {q:"Error when printing undefined variable?",options:["SyntaxError","NameError","No error","LogicalError"],answer:1},
+    {q:"Output: print(type(lambda x:x))",options:["function","lambda","object","type"],answer:0},
+    {q:"Which keyword handles exceptions in Python?",options:["catch","except","error","try"],answer:1},
+    {q:"Output: print('hello'[::-1])",options:["olleh","hello","error","hlo"],answer:0},
+    {q:"Which module is used for regex?",options:["re","regex","pattern","match"],answer:0},
+    {q:"Output: print({1,2,3})",options:["[1,2,3]","{1,2,3}","(1,2,3)","Error"],answer:1},
+    {q:"Output: print(5==5.0)",options:["True","False","Error","None"],answer:0},
+    {q:"What does *args mean in a function?",options:["Fixed args","Variable positional args","Dict args","List only"],answer:1},
+    {q:"Which data type is mutable?",options:["Tuple","String","List","Int"],answer:2},
+    {q:"Output: print(0 or 5)",options:["0","5","True","False"],answer:1},
+  ],
+  C:[
+    {q:"Output: printf(\"%d\",5%2);",options:["2","1","0","Error"],answer:1},
+    {q:"Typical size of int on a 32-bit system?",options:["2 bytes","4 bytes","8 bytes","1 byte"],answer:1},
+    {q:"Which loop is guaranteed to run at least once?",options:["for","while","do-while","none"],answer:2},
+    {q:"Output: printf(\"%d\",!0);",options:["0","1","2","-1"],answer:1},
+    {q:"A pointer stores?",options:["value","memory address","data type","function name"],answer:1},
+    {q:"Output: sizeof(char)",options:["1","2","4","8"],answer:0},
+    {q:"Which is NOT a valid C data type?",options:["int","float","real","double"],answer:2},
+    {q:"Output: 5&3 (bitwise AND)",options:["1","0","5","3"],answer:0},
+    {q:"Which keyword immediately exits a loop?",options:["exit","break","stop","return"],answer:1},
+    {q:"What does malloc() return on failure?",options:["0","NULL","-1","error"],answer:1},
+    {q:"Value of x after: int x=5; x+=3;",options:["5","3","8","15"],answer:2},
+    {q:"Header file needed for printf/scanf?",options:["stdlib.h","stdio.h","math.h","string.h"],answer:1},
+    {q:"What does *ptr mean when ptr is a pointer?",options:["address of ptr","value at address ptr points to","null","error"],answer:1},
+    {q:"Which is a storage class in C?",options:["auto","int","float","char"],answer:0},
+    {q:"Recursion means?",options:["a loop construct","function calling itself","an array operation","a pointer operation"],answer:1},
+    {q:"Output: sizeof(float)",options:["2","4","8","1"],answer:1},
+    {q:"Which function is the entry point of a C program?",options:["start()","main()","init()","run()"],answer:1},
+    {q:"What does scanf() return on success?",options:["0","number of items successfully read","-1","NULL"],answer:1},
+    {q:"Array index in C starts from?",options:["1","0","-1","2"],answer:1},
+    {q:"What does free() do in C?",options:["Allocate memory","Deallocate previously allocated memory","Return memory size","None"],answer:1},
+  ],
+  AI:[
+    {q:"Overfitting means?",options:["model is too simple","fits training well but fails on test data","no learning occurs","low accuracy on all data"],answer:1},
+    {q:"K-Means clustering is which type of learning?",options:["Supervised","Unsupervised","Reinforcement","Deep learning"],answer:1},
+    {q:"CNN is primarily used for?",options:["text data","image data","audio only","tabular data"],answer:1},
+    {q:"Dropout in neural networks is used to?",options:["prevent overfitting","increase model speed","clean input data","increase loss"],answer:0},
+    {q:"Activation functions introduce?",options:["linearity","non-linearity","noise","error"],answer:1},
+    {q:"One epoch means?",options:["one full pass through entire training data","one layer pass","one neuron activation","one dataset split"],answer:0},
+    {q:"Loss function measures?",options:["accuracy of model","error between prediction and truth","model speed","dataset size"],answer:1},
+    {q:"Which is a classification algorithm?",options:["KNN","K-Means","PCA","DBSCAN"],answer:0},
+    {q:"Gradient descent is used to?",options:["maximize loss function","minimize loss function","sort data points","cluster data"],answer:1},
+    {q:"NLP stands for?",options:["Neural Learning Process","Natural Language Processing","Node Language Programming","None of these"],answer:1},
+    {q:"PCA is used for?",options:["classification tasks","dimensionality reduction","clustering only","prediction"],answer:1},
+    {q:"Which is a supervised learning task?",options:["clustering","linear regression","PCA","K-Means"],answer:1},
+    {q:"ReLU activation output is?",options:["max(0,x)","min(0,x)","x squared","log(x)"],answer:0},
+    {q:"GAN stands for?",options:["Generative Adversarial Network","General AI Network","Gradient AI Nodes","None"],answer:0},
+    {q:"Confusion matrix is used for?",options:["model training","evaluating classification performance","data cleaning","loss calculation"],answer:1},
+    {q:"Transfer learning means?",options:["training a model from scratch","reusing a pretrained model for a new task","deleting a trained model","none of these"],answer:1},
+    {q:"Vanishing gradient problem mainly affects?",options:["deep neural networks","small datasets","storage capacity","the input layer only"],answer:0},
+    {q:"Best metric for imbalanced classification datasets?",options:["Accuracy","Precision / Recall / F1","MSE","R-squared"],answer:1},
+    {q:"TensorFlow is?",options:["a database system","an ML/DL framework","an operating system","a programming language"],answer:1},
+    {q:"Normalization in ML means?",options:["scaling features to a common range","removing irrelevant features","sorting the dataset","encoding categorical labels"],answer:0},
+  ],
+  DataAnalytics:[
+    {q:"ETL stands for?",options:["Extract, Transform, Load","Enter, Transfer, Log","Export, Trim, Link","Extract, Test, Label"],answer:0},
+    {q:"Which is a data visualization tool?",options:["Jenkins","Tableau","Docker","Git"],answer:1},
+    {q:"A pivot table is used to?",options:["Write code","Summarize and analyze data","Store images","Run automated tests"],answer:1},
+    {q:"SQL stands for?",options:["Simple Query Language","Structured Query Language","Standard Quick Language","System Query Logic"],answer:1},
+    {q:"Mean, Median, and Mode are measures of?",options:["Dispersion","Central tendency","Correlation","Variance"],answer:1},
+    {q:"Which chart best shows a trend over time?",options:["Pie chart","Bar chart","Line chart","Scatter plot"],answer:2},
+    {q:"An outlier in a dataset is?",options:["The most common value","The average value","A value that lies far from other values","The median value"],answer:2},
+    {q:"Data cleaning refers to?",options:["Deleting all data","Fixing missing, incorrect, or inconsistent data","Encrypting data","Sorting data alphabetically"],answer:1},
+    {q:"Which Python library is primarily used for data manipulation?",options:["NumPy","Pandas","Matplotlib","Flask"],answer:1},
+    {q:"A correlation of -1 means?",options:["No relationship","Perfect positive relationship","Perfect negative relationship","Weak relationship"],answer:2},
+    {q:"Which is NOT a measure of dispersion?",options:["Variance","Standard deviation","Mean","Range"],answer:2},
+    {q:"A heatmap is best used for?",options:["Showing time trends","Visualizing a correlation matrix","Pie comparisons","Text frequency analysis"],answer:1},
+    {q:"What does KPI stand for?",options:["Key Performance Indicator","Known Process Input","Key Process Integration","Known Performance Index"],answer:0},
+    {q:"Which SQL clause is used to filter rows?",options:["GROUP BY","ORDER BY","WHERE","HAVING"],answer:2},
+    {q:"Null values in a dataset indicate?",options:["Zero","Missing or unknown data","Negative numbers","Errors only"],answer:1},
+    {q:"Which chart is best for comparing parts of a whole?",options:["Line chart","Histogram","Pie chart","Box plot"],answer:2},
+    {q:"Standard deviation measures?",options:["The central value of data","The spread/variability of data","The maximum value","The minimum value"],answer:1},
+    {q:"A/B testing is used for?",options:["Data storage optimization","Comparing two versions to find better performance","Network connectivity testing","Sorting algorithms"],answer:1},
+    {q:"Which Python library is primarily used for data visualization?",options:["Pandas","Scikit-learn","Matplotlib","Requests"],answer:2},
+    {q:"Data aggregation means?",options:["Deleting duplicate rows","Collecting and summarizing data into groups","Encrypting records","Sorting columns alphabetically"],answer:1},
+  ],
+};
+
+// ═══════════════════════════════
+//  RENDER QUESTION (ONE BY ONE)
+// ═══════════════════════════════
+function renderQuestionCard(qs, idx, answers, sectionId) {
+  const q      = qs[idx];
+  const chosen = (answers[idx] !== undefined) ? answers[idx] : -1;
+  const total  = qs.length;
+
+  let dots = '';
+  for (let i = 0; i < total; i++) {
+    let cls = 'dot';
+    if (i === idx) cls += ' current';
+    if (answers[i] !== undefined) cls += ' answered';
+    dots += `<div class="${cls}" title="Q${i+1}" onclick="goToQ_${sectionId}(${i})"></div>`;
+  }
+
+  const keys = ['A','B','C','D'];
+  let optsHTML = q.options.map((opt, j) => {
+    const isSel = chosen === j;
+    return `<div class="opt-label${isSel?' selected':''}" onclick="selectOpt_${sectionId}(${j})">
+      <div class="opt-key">${keys[j]}</div>
+      <span>${opt}</span>
+    </div>`;
+  }).join('');
+
+  const catBadge = q.cat
+    ? `<span class="q-badge">${q.cat}</span>`
+    : `<span class="q-badge">${domainLabels[chosenDomain]||'Technical'}</span>`;
+
+  const answeredCount = Object.keys(answers).length;
+  const area = document.getElementById(sectionId + 'QuestionArea');
+  area.innerHTML = `
+    <div class="q-shell">
+      <div class="q-topbar">${catBadge}<span class="q-counter">Question ${idx+1} of ${total}</span></div>
+      <div class="q-body">
+        <div class="q-text"><strong>Q${idx+1}.</strong> ${q.q}</div>
+        <div class="q-options">${optsHTML}</div>
+      </div>
+      <div class="q-nav">
+        <div class="q-dots">${dots}</div>
+        <div style="display:flex;gap:10px;flex-shrink:0;">
+          <button class="btn-nav" onclick="navQ_${sectionId}(-1)" ${idx===0?'disabled':''}>← Prev</button>
+          ${idx < total-1
+            ? `<button class="btn-nav" onclick="navQ_${sectionId}(1)">Next →</button>`
+            : `<button class="btn" style="padding:11px 22px;font-size:.9rem;" onclick="navQ_${sectionId}(1)">Done ✓</button>`
+          }
+        </div>
+      </div>
+    </div>`;
+
+  const pct = Math.round((answeredCount/total)*100);
+  if (sectionId === 's1') {
+    document.getElementById('s1progressText').textContent = `Question ${idx+1} of ${total}`;
+    document.getElementById('s1progressPct').textContent  = `${answeredCount} answered`;
+    document.getElementById('s1progressFill').style.width = pct + '%';
+  } else {
+    document.getElementById('s2progressText').textContent = `Question ${idx+1} of ${total}`;
+    document.getElementById('s2progressPct').textContent  = `${answeredCount} answered`;
+    document.getElementById('s2progressFill').style.width = pct + '%';
+  }
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// Section 1 nav
+function selectOpt_s1(j) { section1Answers[s1CurrentQ]=j; renderQuestionCard(aptitudeQuestions, s1CurrentQ, section1Answers, 's1'); }
+function navQ_s1(dir) {
+  const ni = s1CurrentQ + dir;
+  if (ni < 0) return;
+  if (ni >= aptitudeQuestions.length) { document.querySelector('#section1Div .btn').scrollIntoView({behavior:'smooth'}); return; }
+  s1CurrentQ = ni;
+  renderQuestionCard(aptitudeQuestions, s1CurrentQ, section1Answers, 's1');
+}
+function goToQ_s1(i) { s1CurrentQ = i; renderQuestionCard(aptitudeQuestions, s1CurrentQ, section1Answers, 's1'); }
+
+// Section 2 nav
+function selectOpt_s2(j) { section2Answers[s2CurrentQ]=j; renderQuestionCard(technicalQuestions[chosenDomain], s2CurrentQ, section2Answers, 's2'); }
+function navQ_s2(dir) {
+  const qs = technicalQuestions[chosenDomain];
+  const ni = s2CurrentQ + dir;
+  if (ni < 0) return;
+  if (ni >= qs.length) { document.querySelector('#section2Div .btn').scrollIntoView({behavior:'smooth'}); return; }
+  s2CurrentQ = ni;
+  renderQuestionCard(qs, s2CurrentQ, section2Answers, 's2');
+}
+function goToQ_s2(i) { s2CurrentQ = i; renderQuestionCard(technicalQuestions[chosenDomain], s2CurrentQ, section2Answers, 's2'); }
+
+// ═══ REGISTRATION ═══
+function startTest() {
+  const name    = document.getElementById("nameInput").value.trim();
+  const email   = document.getElementById("emailInput").value.trim().toLowerCase();
+  const phone   = document.getElementById("phoneInput").value.trim();
+  const college = document.getElementById("collegeInput").value;
+  const dept    = document.getElementById("deptInput").value;
+  const year    = document.getElementById("yearInput").value;
+  if (!name)                              { alert("Please enter your full name."); return; }
+  if (!email || !email.includes("@"))     { alert("Please enter a valid email address."); return; }
+  if (!phone||phone.length<10||isNaN(phone)) { alert("Please enter a valid 10-digit phone number."); return; }
+  if (!college)                           { alert("Please select your college."); return; }
+  if (!dept)                              { alert("Please select your department."); return; }
+  if (!year)                              { alert("Please select your year of study."); return; }
+
+  candidateInfo  = { name, email, phone, college, dept, year };
+  testStarted    = true;
+  currentSection = "section1";
+
+  document.getElementById("regSection").style.display    = "none";
+  document.getElementById("section1Div").style.display   = "block";
+  document.getElementById("stickyTimer").style.display   = "block";
+  document.getElementById("timerSection").textContent    = "Section 1 — Aptitude";
+  window.scrollTo(0,0);
+
+  s1CurrentQ = 0;
+  renderQuestionCard(aptitudeQuestions, 0, section1Answers, 's1');
+  startGlobalTimer();
+}
+
+// ═══ SUBMIT SECTION 1 ═══
+function submitSection1(auto = false) {
+  if (!auto) {
+    const answered = Object.keys(section1Answers).length;
+    const msg = answered < 30
+      ? `You have answered ${answered} of 30 questions.\nAre you sure you want to submit Section 1?`
+      : "Submit Section 1? You cannot change your answers after submitting.";
+    if (!confirm(msg)) return;
+  }
+  s1Score = 0;
+  aptitudeQuestions.forEach((q,i) => { if (section1Answers[i]===q.answer) s1Score++; });
+  currentSection = "transition";
+  document.getElementById("section1Div").style.display   = "none";
+  document.getElementById("transitionDiv").style.display = "block";
+  document.getElementById("timerSection").textContent    = "⚡ Choose Domain!";
+  window.scrollTo(0,0);
+}
+
+// ═══ START SECTION 2 ═══
+function startSection2(domain) {
+  chosenDomain   = domain;
+  currentSection = "section2";
+  s2CurrentQ     = 0;
+  document.getElementById("transitionDiv").style.display = "none";
+  document.getElementById("section2Div").style.display   = "block";
+  document.getElementById("timerSection").textContent    = `Section 2 — ${domainLabels[domain]||domain}`;
+  window.scrollTo(0,0);
+  renderQuestionCard(technicalQuestions[domain], 0, section2Answers, 's2');
+}
+
+// ═══ SUBMIT FINAL ═══
+function submitFinal(auto = false) {
+  if (!auto) {
+    const answered = Object.keys(section2Answers).length;
+    const msg = answered < 20
+      ? `You have answered ${answered} of 20 questions.\nSubmit and finish the test?`
+      : "Submit and finish the test? This cannot be undone.";
+    if (!confirm(msg)) return;
+  }
+  clearInterval(timerInterval);
+
+  let s2Score = 0;
+  const qs = technicalQuestions[chosenDomain] || technicalQuestions["Java"];
+  qs.forEach((q,i) => { if (section2Answers[i]===q.answer) s2Score++; });
+
+  const totalScore = s1Score + s2Score;
+  const totalPct   = Math.round((totalScore/50)*100);
+  const status     = totalScore >= 35 ? "Selected" : "Rejected";
+  const s1Pass     = s1Score >= 18;
+  const s2Pass     = s2Score >= 12;
+
+  document.getElementById("loadingMsg").textContent = "Saving your result…";
+  document.getElementById("loadingOverlay").classList.add("show");
+  document.getElementById("section2Div").style.display  = "none";
+  document.getElementById("stickyTimer").style.display  = "none";
+
+  const payload = {
+    ...candidateInfo,
+    section1Score:  s1Score,
+    section2Domain: chosenDomain,
+    section2Score:  s2Score,
+    totalScore, totalPct,
+    s1Pass, s2Pass,
+    status,
+    gdStatus: status === "Selected" ? "GD_PENDING" : "NOT_ELIGIBLE",
+    autoSubmitted: auto,
+    submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  // ── Upsert: update existing doc if same email found, else add new ──
+  const emailKey = (candidateInfo.email || "").toLowerCase().trim();
+  db.collection("campus_results_2026")
+    .where("email", "==", emailKey)
+    .get()
+    .then(snap => {
+      if (!snap.empty) {
+        // Email already in Firestore → update the existing document
+        return snap.docs[0].ref.update(payload);
+      } else {
+        // First submission → create a new document
+        return db.collection("campus_results_2026").add(payload);
+      }
+    })
+    .then(() => {
+      document.getElementById("loadingOverlay").classList.remove("show");
+      showStudentResult(status, s1Score, s2Score, totalScore, totalPct);
+    })
+    .catch(err => {
+      console.error(err);
+      document.getElementById("loadingOverlay").classList.remove("show");
+      showStudentResult(status, s1Score, s2Score, totalScore, totalPct);
+    });
+}
+
+// ═══ RESULT SCREEN ═══
+function showStudentResult(status, s1, s2, total, pct) {
+  const ok   = status === "Selected";
+  const s1p  = Math.round((s1/30)*100);
+  const s2p  = Math.round((s2/20)*100);
+
+  document.getElementById("studentResultBanner").innerHTML = `
+    <div class="result-banner ${ok?'selected':'rejected'}">
+      <div style="font-size:4rem;margin-bottom:14px;">${ok?'🎉':'😔'}</div>
+      <h2>${ok?'Congratulations!':'Better Luck Next Time'}</h2>
+      <p style="color:#374151;font-size:1rem;margin-bottom:6px;font-weight:500;">
+        ${ok?'You have <strong>cleared</strong> the Aptitude Round!':'You did <strong>not clear</strong> the Electrobtech Technical Assessment.'}
+      </p>
+      <div class="result-pct">${pct}% Overall &nbsp;(${total}/50)</div>
+      <div class="score-breakdown">
+        <div class="sb-card">
+          <div style="font-size:1.5rem;margin-bottom:6px;">📝</div>
+          <div class="sb-score">${s1}<span style="font-size:1rem;font-weight:500;color:var(--gray)">/30</span></div>
+          <div class="sb-label">Aptitude Score</div>
+          <div class="sb-bar"><div class="sb-fill" style="width:${s1p}%;background:#4e8ef7;"></div></div>
+          <div class="sb-status ${s1>=18?'pass':'fail'}">${s1>=18?'✅ Good':'⚠ Needs Work'}</div>
+        </div>
+        <div class="sb-card">
+          <div style="font-size:1.5rem;margin-bottom:6px;">${domainIcons[chosenDomain]||'💻'}</div>
+          <div class="sb-score">${s2}<span style="font-size:1rem;font-weight:500;color:var(--gray)">/20</span></div>
+          <div class="sb-label">${domainLabels[chosenDomain]||'Technical'}</div>
+          <div class="sb-bar"><div class="sb-fill" style="width:${s2p}%;background:#f59e0b;"></div></div>
+          <div class="sb-status ${s2>=12?'pass':'fail'}">${s2>=12?'✅ Good':'⚠ Needs Work'}</div>
+        </div>
+        <div class="sb-card">
+          <div style="font-size:1.5rem;margin-bottom:6px;">🏆</div>
+          <div class="sb-score">${total}<span style="font-size:1rem;font-weight:500;color:var(--gray)">/50</span></div>
+          <div class="sb-label">Total Score</div>
+          <div class="sb-bar"><div class="sb-fill" style="width:${pct}%;background:${ok?'#16a34a':'#dc2626'};"></div></div>
+          <div class="sb-status ${ok?'pass':'fail'}">${ok?'✅ Aptitude Cleared':'❌ Not Selected'}</div>
+        </div>
+      </div>
+      ${ok ? `<div class="gd-notice" style="margin-top:16px;">
+        <h4>🎤 You're shortlisted for the GD Round!</h4>
+        <p>Our team will contact you at <strong>${candidateInfo.email}</strong> with the GD round schedule and details.<br>
+        <strong style="color:#6d28d9;">info@electrobtech.in</strong></p>
+      </div>` : ''}
+    </div>`;
+
+  document.getElementById("studentResultNote").innerHTML = ok
+    ? `🎊 <strong>Aptitude Cleared!</strong> You will be contacted for the Group Discussion (GD) Round.<br>
+       Prepare well — the GD round assesses communication, teamwork, and subject knowledge.<br>
+       <span style="color:var(--orange);font-weight:700;">info@electrobtech.in</span>`
+    : `📚 Keep practicing! Look out for future opportunities with Electrobtech.<br>
+       <span style="color:var(--orange);font-weight:700;">info@electrobtech.in</span>`;
+
+  document.getElementById("studentResultNote").className = `result-note ${ok?'selected-note':'rejected-note'}`;
+  document.getElementById("resultSection").style.display = "block";
+  window.scrollTo(0,0);
+}
+
+// ═══ GLOBAL TIMER (60 min) ═══
+function startGlobalTimer() {
+  updateTimerDisplay();
+  timerInterval = setInterval(() => {
+    totalTimeLeft--;
+    updateTimerDisplay();
+    if (totalTimeLeft <= 300)
+      document.getElementById("stickyTimer").classList.add("urgent");
+    if (totalTimeLeft <= 0) {
+      clearInterval(timerInterval);
+      alert("⏰ Time is up! Your test is being submitted automatically.");
+      if (currentSection === "section1" || currentSection === "transition") {
+        if (currentSection === "section1") submitSection1(true);
+        setTimeout(() => { if (!chosenDomain) chosenDomain = "Java"; submitFinal(true); }, 800);
+      } else {
+        submitFinal(true);
+      }
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const m = String(Math.floor(totalTimeLeft/60)).padStart(2,"0");
+  const s = String(totalTimeLeft%60).padStart(2,"0");
+  document.getElementById("timerDisplay").textContent = `${m}:${s}`;
+}
+
+// ═══ ANTI-CHEAT ═══
+document.addEventListener("visibilitychange", () => {
+  if (!testStarted || currentSection === "result") return;
+  if (document.hidden) {
+    tabSwitchCount++;
+    if      (tabSwitchCount === 1) alert("⚠️ Warning 1/3: Do not switch tabs. This is being monitored.");
+    else if (tabSwitchCount === 2) alert("⚠️ Warning 2/3: Final warning! Next violation will auto-submit.");
+    else if (tabSwitchCount >= 3) {
+      alert("❌ Multiple violations. Your test is being submitted now.");
+      clearInterval(timerInterval);
+      if (currentSection === "section1") {
+        submitSection1(true);
+        setTimeout(() => { if (!chosenDomain) chosenDomain = "Java"; submitFinal(true); }, 800);
+      } else {
+        submitFinal(true);
+      }
+    }
+  }
+});
+document.addEventListener("contextmenu", e => { if(testStarted) e.preventDefault(); });
+document.addEventListener("keydown", e => {
+  if (!testStarted) return;
+  if ((e.ctrlKey||e.metaKey) && ["c","v","u","s","a","p","i"].includes(e.key.toLowerCase())) e.preventDefault();
+  if (["F12","F5"].includes(e.key)) e.preventDefault();
+});
+document.addEventListener("copy",  e => { if(testStarted) e.preventDefault(); });
+document.addEventListener("paste", e => { if(testStarted) e.preventDefault(); });
+document.addEventListener("cut",   e => { if(testStarted) e.preventDefault(); });
+</script>
+</body>
+</html>

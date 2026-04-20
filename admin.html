@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Electrobtech – Admin Dashboard</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --navy:#0d1b6e;--blue:#1a3aad;--sky:#4e8ef7;
+  --orange:#ff6600;--light:#f0f4ff;--white:#fff;
+  --gray:#6b7280;--pass:#16a34a;--fail:#dc2626;
+  --bde:#7c3aed;--gd:#0891b2;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4ff;min-height:100vh;}
+
+/* ── LOGIN ── */
+#loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#0d1b6e,#1a3aad 60%,#4e8ef7);}
+.login-box{background:#fff;border-radius:18px;padding:44px 40px;box-shadow:0 20px 60px rgba(0,0,0,.4);width:100%;max-width:420px;text-align:center;}
+.login-logo{font-size:2.8rem;margin-bottom:6px;}
+.login-box h1{color:var(--navy);font-size:1.6rem;margin-bottom:4px;}
+.login-box p{color:var(--gray);font-size:.88rem;margin-bottom:28px;}
+.login-box input{width:100%;padding:13px 16px;border:2px solid #c7d2fe;border-radius:9px;font-size:1rem;outline:none;margin-bottom:16px;transition:border .2s;}
+.login-box input:focus{border-color:var(--blue);}
+.login-btn{width:100%;padding:13px;background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;border:none;border-radius:9px;font-size:1rem;font-weight:700;cursor:pointer;}
+.login-btn:hover{opacity:.88;}
+#loginError{color:var(--fail);font-size:.87rem;margin-top:10px;}
+
+/* ── DASHBOARD ── */
+#dashboard{display:none;background:#f0f4ff;min-height:100vh;}
+.admin-header{background:linear-gradient(135deg,var(--navy),var(--blue));padding:16px 28px;display:flex;align-items:center;gap:14px;box-shadow:0 4px 20px rgba(0,0,0,.3);position:sticky;top:0;z-index:100;}
+.admin-header img{height:44px;border-radius:6px;}
+.admin-header h1{color:#fff;font-size:1.15rem;font-weight:800;}
+.admin-header p{color:#a5c0ff;font-size:.76rem;}
+.header-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;}
+.hbtn{padding:8px 16px;border-radius:7px;font-size:.83rem;font-weight:700;cursor:pointer;border:none;transition:opacity .2s;}
+.hbtn:hover{opacity:.85;}
+.hbtn-orange{background:var(--orange);color:#fff;}
+.hbtn-white{background:#fff;color:var(--navy);}
+.hbtn-purple{background:#7c3aed;color:#fff;}
+.hbtn-teal{background:#0891b2;color:#fff;}
+
+.content{max-width:1300px;margin:0 auto;padding:24px 14px 60px;}
+
+/* ── TABS ── */
+.tab-bar{display:flex;gap:6px;margin-bottom:22px;flex-wrap:wrap;}
+.tab-btn{padding:10px 22px;border-radius:8px;font-size:.9rem;font-weight:700;cursor:pointer;border:2px solid #c7d2fe;background:#fff;color:var(--gray);transition:all .2s;}
+.tab-btn.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+.tab-btn.gd-tab.active{background:var(--gd);border-color:var(--gd);}
+.tab-btn.bde-tab.active{background:var(--bde);border-color:var(--bde);}
+
+/* ── SUMMARY CARDS ── */
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:24px;}
+.summary-card{background:#fff;border-radius:12px;padding:20px 16px;box-shadow:0 4px 14px rgba(13,27,110,.09);text-align:center;}
+.summary-card .s-icon{font-size:1.9rem;margin-bottom:6px;}
+.summary-card .s-val{font-size:1.9rem;font-weight:800;color:var(--navy);}
+.summary-card .s-lbl{color:var(--gray);font-size:.79rem;margin-top:3px;}
+.summary-card.green .s-val{color:var(--pass);}
+.summary-card.red   .s-val{color:var(--fail);}
+.summary-card.orange .s-val{color:var(--orange);}
+.summary-card.purple .s-val{color:var(--bde);}
+.summary-card.teal  .s-val{color:var(--gd);}
+
+/* ── CHARTS ── */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;}
+@media(max-width:900px){.charts-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:600px){.charts-grid{grid-template-columns:1fr;}}
+.chart-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 4px 14px rgba(13,27,110,.09);}
+.chart-card h3{color:var(--navy);font-size:.95rem;font-weight:700;margin-bottom:14px;}
+.chart-card canvas{max-height:220px;}
+
+/* ── CONTROLS ── */
+.controls-bar{background:#fff;border-radius:12px;padding:14px 18px;box-shadow:0 4px 14px rgba(13,27,110,.07);margin-bottom:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.controls-bar input,.controls-bar select{padding:8px 12px;border:2px solid #c7d2fe;border-radius:8px;font-size:.88rem;outline:none;transition:border .2s;background:#fff;}
+.controls-bar input:focus,.controls-bar select:focus{border-color:var(--blue);}
+.ctrl-label{font-size:.8rem;color:var(--gray);font-weight:700;}
+
+/* ── TABLE ── */
+.table-wrap{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 14px rgba(13,27,110,.09);margin-bottom:20px;}
+.table-header{padding:16px 20px;border-bottom:1px solid #e0e7ff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.table-header h2{color:var(--navy);font-size:1.05rem;font-weight:700;}
+table{width:100%;border-collapse:collapse;font-size:.85rem;}
+thead{background:var(--light);}
+thead th{padding:11px 13px;text-align:left;color:var(--navy);font-weight:700;font-size:.79rem;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
+tbody tr{border-bottom:1px solid #f0f4ff;transition:background .15s;}
+tbody tr:hover{background:#f8faff;}
+tbody td{padding:12px 13px;color:#374151;vertical-align:middle;}
+
+/* ── BADGES ── */
+.badge{display:inline-block;padding:3px 11px;border-radius:20px;font-size:.76rem;font-weight:700;}
+.badge-pass{background:#dcfce7;color:#15803d;}
+.badge-fail{background:#fee2e2;color:#b91c1c;}
+.badge-gd{background:#cffafe;color:#0e7490;}
+.badge-final-sel{background:#dcfce7;color:#15803d;}
+.badge-final-rej{background:#fee2e2;color:#b91c1c;}
+.badge-pending{background:#fef3c7;color:#92400e;}
+
+.score-pill{display:inline-flex;align-items:center;gap:4px;background:#f0f4ff;border-radius:6px;padding:3px 9px;font-size:.82rem;font-weight:700;color:var(--navy);}
+.score-bar{height:5px;background:#e0e7ff;border-radius:4px;margin-top:4px;overflow:hidden;}
+.score-fill{height:100%;border-radius:4px;}
+.expand-btn{background:var(--light);border:1px solid #c7d2fe;padding:4px 10px;border-radius:5px;font-size:.77rem;cursor:pointer;color:var(--blue);font-weight:600;}
+.expand-row{display:none;background:#f8faff;}
+
+/* ── PAGINATION ── */
+.pagination{display:flex;align-items:center;justify-content:center;gap:6px;padding:16px;flex-wrap:wrap;}
+.page-btn{width:36px;height:36px;border-radius:8px;border:2px solid #c7d2fe;background:#fff;color:var(--navy);font-weight:700;font-size:.85rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;}
+.page-btn:hover{border-color:var(--blue);color:var(--blue);}
+.page-btn.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+.page-btn:disabled{opacity:.4;cursor:not-allowed;}
+.page-info{color:var(--gray);font-size:.85rem;font-weight:600;}
+
+/* ── BDE ── */
+.bde-header{background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;border-radius:12px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:14px;}
+.bde-header .bde-icon{font-size:2.2rem;}
+.bde-header h2{font-size:1.2rem;font-weight:800;}
+.domain-group{margin-bottom:20px;}
+.domain-group-header{display:flex;align-items:center;gap:10px;padding:12px 18px;border-radius:10px 10px 0 0;color:#fff;font-weight:700;font-size:.95rem;}
+.domain-group-body{background:#fff;border-radius:0 0 10px 10px;box-shadow:0 4px 14px rgba(0,0,0,.08);overflow:hidden;}
+
+/* ── GD TAB ── */
+.gd-hero{background:linear-gradient(135deg,#0891b2,#0e7490);color:#fff;border-radius:12px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.gd-hero h2{font-size:1.2rem;font-weight:800;}
+.gd-pipeline{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-bottom:22px;}
+.pipeline-step{background:#fff;border-radius:12px;padding:18px 16px;box-shadow:0 4px 14px rgba(13,27,110,.09);text-align:center;border-top:4px solid #e0e7ff;}
+.pipeline-step.step1{border-top-color:#4e8ef7;}
+.pipeline-step.step2{border-top-color:#7c3aed;}
+.pipeline-step.step3{border-top-color:#0891b2;}
+.pipeline-step.step4{border-top-color:#16a34a;}
+.pipeline-step .ps-val{font-size:1.6rem;font-weight:800;color:var(--navy);}
+.pipeline-step .ps-lbl{font-size:.78rem;color:var(--gray);margin-top:3px;}
+
+/* ── SPINNER ── */
+#spinner{display:none;align-items:center;justify-content:center;padding:60px;flex-direction:column;gap:14px;color:var(--gray);}
+#spinner.show{display:flex;}
+.spin{width:42px;height:42px;border:4px solid #c7d2fe;border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.empty-state{padding:50px 20px;text-align:center;color:var(--gray);}
+.empty-state .icon{font-size:3rem;margin-bottom:10px;}
+
+.footer-strip{background:var(--navy);color:#a5c0ff;text-align:center;padding:12px;font-size:.78rem;}
+.footer-strip strong{color:var(--orange);}
+@media(max-width:700px){.admin-header{padding:10px 14px;}.content{padding:14px 10px 40px;}thead th,tbody td{padding:9px 8px;font-size:.78rem;}}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">🔐</div>
+    <h1>Admin Dashboard</h1>
+    <p>Electrobtech Innovations Pvt Ltd<br>Campus Hiring 2026 — Authorised Personnel Only</p>
+    <input type="text" id="adminUser" placeholder="Admin Username" autocomplete="off">
+    <input type="password" id="adminPass" placeholder="Admin Password"
+           onkeypress="if(event.key==='Enter') doLogin()">
+    <button class="login-btn" onclick="doLogin()">🔓 Login to Dashboard</button>
+    <div id="loginError"></div>
+  </div>
+</div>
+
+<!-- ══ DASHBOARD ══ -->
+<div id="dashboard">
+  <div class="admin-header">
+    <img src="./Logo.jpeg" alt="Electrobtech" onerror="this.style.display='none'">
+    <div>
+      <h1>Electrobtech Admin Dashboard</h1>
+      <p>Campus Hiring 2026 — Assessment Results &amp; Pipeline</p>
+    </div>
+    <div class="header-actions">
+      <button class="hbtn hbtn-teal"   onclick="window.open('gd.html','_blank')">🎤 GD Panel</button>
+      <button class="hbtn hbtn-orange" onclick="exportCSV()">⬇ Export CSV</button>
+      <button class="hbtn hbtn-white"  onclick="loadData()">🔄 Refresh</button>
+      <button class="hbtn hbtn-white"  onclick="doLogout()">🚪 Logout</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- TABS -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-results" onclick="showTab('results')">📋 All Results</button>
+      <button class="tab-btn"        id="tab-charts"  onclick="showTab('charts')">📊 Analytics</button>
+      <button class="tab-btn gd-tab" id="tab-gd"      onclick="showTab('gd')">🎤 GD &amp; Final</button>
+      <button class="tab-btn bde-tab"id="tab-bde"     onclick="showTab('bde')">🎯 BDE Leads</button>
+    </div>
+
+    <!-- ── TAB: ALL RESULTS ── -->
+    <div id="tabResults">
+      <div class="summary-grid">
+        <div class="summary-card">       <div class="s-icon">👥</div><div class="s-val" id="sTotal">—</div><div class="s-lbl">Total Candidates</div></div>
+        <div class="summary-card green"> <div class="s-icon">✅</div><div class="s-val" id="sSel">—</div><div class="s-lbl">Aptitude Cleared</div></div>
+        <div class="summary-card red">   <div class="s-icon">❌</div><div class="s-val" id="sRej">—</div><div class="s-lbl">Rejected</div></div>
+        <div class="summary-card orange"><div class="s-icon">📊</div><div class="s-val" id="sAvg">—</div><div class="s-lbl">Avg Score /50</div></div>
+        <div class="summary-card">       <div class="s-icon">🏆</div><div class="s-val" id="sTop">—</div><div class="s-lbl">Highest Score</div></div>
+        <div class="summary-card">       <div class="s-icon">📈</div><div class="s-val" id="sRate">—</div><div class="s-lbl">Pass Rate</div></div>
+        <div class="summary-card teal">  <div class="s-icon">🎤</div><div class="s-val" id="sGdPend">—</div><div class="s-lbl">Pending GD</div></div>
+        <div class="summary-card purple"><div class="s-icon">🎯</div><div class="s-val" id="sBde">—</div><div class="s-lbl">BDE Leads</div></div>
+      </div>
+
+      <div class="controls-bar">
+        <span class="ctrl-label">Filter:</span>
+        <select id="filterStatus"  onchange="applyFilters()">
+          <option value="all">All Candidates</option>
+          <option value="Selected">Aptitude Cleared</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+        <select id="filterDomain"  onchange="applyFilters()">
+          <option value="all">All Domains</option>
+          <option value="Java">Java</option>
+          <option value="Python">Python</option>
+          <option value="C">C Programming</option>
+          <option value="AI">ML &amp; AI</option>
+          <option value="DataAnalytics">Data Analytics</option>
+        </select>
+        <select id="filterCollege" onchange="applyFilters()">
+          <option value="all">All Colleges</option>
+          <option>Presidency College</option>
+          <option>The Oxford College of Engineering</option>
+          <option>T John Institute Of Technology</option>
+          <option>BMS College of Commerce and Management</option>
+        </select>
+        <select id="filterYear"    onchange="applyFilters()">
+          <option value="all">All Years</option>
+          <option value="3rd Year">3rd Year</option>
+          <option value="4th Year">4th Year</option>
+          <option value="Final Year (PG)">Final Year (PG)</option>
+        </select>
+        <input type="text" id="searchInput" placeholder="🔍 Search name / email…"
+               oninput="applyFilters()" style="min-width:180px;">
+        <span class="ctrl-label" id="resultCount" style="margin-left:auto;"></span>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <h2>📋 Candidate Results</h2>
+          <span id="tableCountLabel" style="color:var(--gray);font-size:.83rem;"></span>
+        </div>
+        <div id="spinner"><div class="spin"></div><p>Loading from Firebase…</p></div>
+        <div id="tableBody" style="overflow-x:auto;"></div>
+        <div id="pagination" class="pagination"></div>
+      </div>
+    </div>
+
+    <!-- ── TAB: ANALYTICS ── -->
+    <div id="tabCharts" style="display:none;">
+      <div class="charts-grid">
+        <div class="chart-card"><h3>📊 Score Distribution</h3><canvas id="scoreChart"></canvas></div>
+        <div class="chart-card"><h3>🎯 Domain Chosen</h3><canvas id="domainChart"></canvas></div>
+        <div class="chart-card"><h3>📝 Avg Section Scores</h3><canvas id="sectionChart"></canvas></div>
+        <div class="chart-card"><h3>🏫 Top Colleges</h3><canvas id="collegeChart"></canvas></div>
+        <div class="chart-card"><h3>✅ Pass/Fail per Domain</h3><canvas id="domainStatusChart"></canvas></div>
+        <div class="chart-card"><h3>📚 Avg Tech Score per Domain</h3><canvas id="domainAvgChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ── TAB: GD & FINAL ── -->
+    <div id="tabGd" style="display:none;">
+      <div class="gd-hero">
+        <div style="font-size:2.2rem;">🎤</div>
+        <div style="flex:1;">
+          <h2>GD Round &amp; Final Results Pipeline</h2>
+          <p style="opacity:.85;font-size:.88rem;margin-top:3px;">
+            Aptitude → GD Scoring → Final Selection.
+          </p>
+        </div>
+        <button class="hbtn hbtn-white" onclick="window.open('gd.html','_blank')">
+          🎤 Open GD Scoring Panel →
+        </button>
+      </div>
+
+      <div class="gd-pipeline">
+        <div class="pipeline-step step1"><div style="font-size:1.8rem;margin-bottom:6px;">📝</div><div class="ps-val" id="pipeTotal">—</div><div class="ps-lbl">Appeared for Aptitude</div></div>
+        <div class="pipeline-step step2"><div style="font-size:1.8rem;margin-bottom:6px;">✅</div><div class="ps-val" id="pipeAptPass">—</div><div class="ps-lbl">Aptitude Cleared (≥70%)</div></div>
+        <div class="pipeline-step step3"><div style="font-size:1.8rem;margin-bottom:6px;">🎤</div><div class="ps-val" id="pipeGdScored">—</div><div class="ps-lbl">GD Scored</div></div>
+        <div class="pipeline-step step4"><div style="font-size:1.8rem;margin-bottom:6px;">🏆</div><div class="ps-val" id="pipeFinalSel">—</div><div class="ps-lbl">Finally Selected</div></div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <h2>🎤 GD Round — Shortlisted Candidates</h2>
+          <button class="hbtn hbtn-orange" style="font-size:.8rem;padding:7px 14px;"
+                  onclick="exportGDCSV()">⬇ Export GD CSV</button>
+        </div>
+        <div id="gdTableBody" style="overflow-x:auto;"></div>
+      </div>
+    </div>
+
+    <!-- ── TAB: BDE ── -->
+    <div id="tabBde" style="display:none;">
+      <div class="bde-header">
+        <div class="bde-icon">🎯</div>
+        <div>
+          <h2>BDE Conversion Leads</h2>
+          <p>Rejected candidates grouped by domain — targeted course conversion.</p>
+        </div>
+      </div>
+      <div id="bdeContent"></div>
+    </div>
+
+  </div>
+
+  <div class="footer-strip">
+    © 2026 <strong>Electrobtech Innovations Pvt Ltd</strong> &nbsp;|&nbsp; Admin Panel &nbsp;|&nbsp; info@electrobtech.in
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   FIREBASE INIT
+════════════════════════════════════════ */
+firebase.initializeApp({
+  apiKey:            "AIzaSyAHq9I5te9NPTXTIP0U1dJwmE8b0All0Fw",
+  authDomain:        "test-mode-aa4f8.firebaseapp.com",
+  projectId:         "test-mode-aa4f8",
+  storageBucket:     "test-mode-aa4f8.appspot.com",
+  messagingSenderId: "769528632193",
+  appId:             "1:769528632193:web:3b3d1dcb1009c6f7b38e80"
+});
+const db = firebase.firestore();
+
+/* ════════════════════════════════════════
+   CONSTANTS
+════════════════════════════════════════ */
+const ADMIN_CREDS  = { admin:"Electrobtech@2026", electrobtech:"Admin@Campus2026" };
+const ALL_DOMAINS  = ["Java","Python","C","AI","DataAnalytics"];
+const DOMAIN_COLOR = { Java:"#f59e0b", Python:"#10b981", C:"#6366f1", AI:"#ec4899", DataAnalytics:"#0ea5e9" };
+const DOMAIN_ICON  = { Java:"☕", Python:"🐍", C:"⚙️", AI:"🤖", DataAnalytics:"📊" };
+const DOMAIN_LABEL = { Java:"Java", Python:"Python", C:"C Programming", AI:"ML & AI", DataAnalytics:"Data Analytics" };
+const DOMAIN_COURSE= { Java:"Java Full Stack Development", Python:"Python & Data Science", C:"C/C++ & Systems Programming", AI:"AI & Machine Learning", DataAnalytics:"Data Analytics & BI" };
+
+/* ════════════════════════════════════════
+   STATE
+════════════════════════════════════════ */
+let allData = [], filtered = [], currentPage = 1;
+const PAGE_SIZE = 10;
+let chartRefs   = {};
+
+/* ════════════════════════════════════════
+   LOGIN / LOGOUT
+════════════════════════════════════════ */
+function doLogin() {
+  const user = document.getElementById("adminUser").value.trim().toLowerCase();
+  const pass = document.getElementById("adminPass").value;
+  if (ADMIN_CREDS[user] && ADMIN_CREDS[user] === pass) {
+    sessionStorage.setItem("eb_admin_auth","true");
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("dashboard").style.display   = "block";
+    loadData();
+  } else {
+    document.getElementById("loginError").textContent = "❌ Invalid credentials.";
+    document.getElementById("adminPass").value = "";
+  }
+}
+function doLogout() { sessionStorage.removeItem("eb_admin_auth"); location.reload(); }
+if (sessionStorage.getItem("eb_admin_auth") === "true") {
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("dashboard").style.display   = "block";
+  loadData();
+}
+
+/* ════════════════════════════════════════
+   TAB SWITCHER
+════════════════════════════════════════ */
+function showTab(tab) {
+  ["results","charts","gd","bde"].forEach(t => {
+    const el  = document.getElementById("tab" + t[0].toUpperCase() + t.slice(1));
+    const btn = document.getElementById("tab-" + t);
+    if (el)  el.style.display = "none";
+    if (btn) btn.classList.remove("active");
+  });
+  const el  = document.getElementById("tab" + tab[0].toUpperCase() + tab.slice(1));
+  const btn = document.getElementById("tab-" + tab);
+  if (el)  el.style.display = "block";
+  if (btn) btn.classList.add("active");
+  if (tab === "charts") renderCharts();
+  if (tab === "bde")    renderBDE();
+  if (tab === "gd")     renderGDTab();
+}
+
+/* ════════════════════════════════════════
+   LOAD DATA FROM FIREBASE
+   FIX: No .orderBy() on the query.
+   Sorting done client-side to avoid
+   Firestore composite index requirement.
+════════════════════════════════════════ */
+async function loadData() {
+  document.getElementById("spinner").classList.add("show");
+  document.getElementById("tableBody").innerHTML = "";
+  try {
+    // Simple .get() — no orderBy, no composite index needed
+    const snap = await db.collection("campus_results_2026").get();
+    const raw  = [];
+    snap.forEach(doc => raw.push({ id: doc.id, ...doc.data() }));
+
+    // ── DEDUPLICATE by email (keep latest submittedAt) ──
+    const emailMap = {};
+    raw.forEach(d => {
+      const email = (d.email || "").toLowerCase().trim();
+      if (!email) return;
+      if (!emailMap[email]) {
+        emailMap[email] = d;
+      } else {
+        // Keep the one with the later submittedAt
+        const existing = emailMap[email].submittedAt?.toMillis?.() ?? 0;
+        const incoming = d.submittedAt?.toMillis?.() ?? 0;
+        if (incoming > existing) emailMap[email] = d;
+      }
+    });
+
+    // Convert map back to array, sort newest first
+    allData = Object.values(emailMap).sort((a, b) => {
+      return (b.submittedAt?.toMillis?.() ?? 0) - (a.submittedAt?.toMillis?.() ?? 0);
+    });
+
+    renderSummary();
+    applyFilters();
+  } catch(e) {
+    document.getElementById("tableBody").innerHTML =
+      `<div class="empty-state"><div class="icon">⚠️</div><p>Error: ${e.message}</p></div>`;
+  } finally {
+    document.getElementById("spinner").classList.remove("show");
+  }
+}
+
+/* ════════════════════════════════════════
+   SUMMARY STATS
+════════════════════════════════════════ */
+function renderSummary() {
+  const total    = allData.length;
+  const sel      = allData.filter(d => d.status === "Selected").length;
+  const rej      = total - sel;
+  const scores   = allData.map(d => d.totalScore || 0);
+  const avg      = total ? (scores.reduce((a,b)=>a+b,0)/total).toFixed(1) : 0;
+  const top      = total ? Math.max(...scores) : 0;
+  const rate     = total ? Math.round((sel/total)*100)+"%" : "0%";
+  const gdScored = allData.filter(d => d.gdTotal !== undefined).length;
+  const gdPend   = Math.max(0, sel - gdScored);
+
+  document.getElementById("sTotal").textContent  = total;
+  document.getElementById("sSel").textContent    = sel;
+  document.getElementById("sRej").textContent    = rej;
+  document.getElementById("sAvg").textContent    = avg;
+  document.getElementById("sTop").textContent    = top;
+  document.getElementById("sRate").textContent   = rate;
+  document.getElementById("sGdPend").textContent = gdPend;
+  document.getElementById("sBde").textContent    = rej;
+}
+
+/* ════════════════════════════════════════
+   FILTERS
+════════════════════════════════════════ */
+function applyFilters() {
+  const status  = document.getElementById("filterStatus").value;
+  const domain  = document.getElementById("filterDomain").value;
+  const college = document.getElementById("filterCollege").value;
+  const year    = document.getElementById("filterYear").value;
+  const search  = document.getElementById("searchInput").value.toLowerCase();
+
+  filtered = allData.filter(d => {
+    if (status  !== "all" && d.status          !== status)  return false;
+    if (domain  !== "all" && d.section2Domain  !== domain)  return false;
+    if (college !== "all" && d.college         !== college) return false;
+    if (year    !== "all" && d.year            !== year)    return false;
+    if (search  && !`${d.name||""} ${d.email||""} ${d.college||""}`.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  currentPage = 1;
+  document.getElementById("resultCount").textContent =
+    `${filtered.length} of ${allData.length} candidates`;
+  renderTable();
+}
+
+/* ════════════════════════════════════════
+   MAIN RESULTS TABLE
+════════════════════════════════════════ */
+function renderTable() {
+  const wrap   = document.getElementById("tableBody");
+  const pagDiv = document.getElementById("pagination");
+  const tp     = Math.ceil(filtered.length / PAGE_SIZE);
+
+  if (!filtered.length) {
+    wrap.innerHTML = `<div class="empty-state"><div class="icon">📭</div><p>No results match the filter.</p></div>`;
+    pagDiv.innerHTML = "";
+    document.getElementById("tableCountLabel").textContent = "";
+    return;
+  }
+
+  const start = (currentPage-1)*PAGE_SIZE;
+  const end   = Math.min(start+PAGE_SIZE, filtered.length);
+  const page  = filtered.slice(start, end);
+  document.getElementById("tableCountLabel").textContent = `Showing ${start+1}–${end} of ${filtered.length}`;
+
+  let html = `<table><thead><tr>
+    <th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>College</th>
+    <th>Dept</th><th>Year</th><th>Apt/30</th><th>Domain</th>
+    <th>Tech/20</th><th>Total/50</th><th>Apt Status</th><th>GD</th><th>Submitted</th><th></th>
+  </tr></thead><tbody>`;
+
+  page.forEach((d, i) => {
+    const gi   = start + i + 1;
+    const s1   = d.section1Score || 0;
+    const s2   = d.section2Score || 0;
+    const tot  = d.totalScore    || 0;
+    const dom  = d.section2Domain || "—";
+    const pct  = Math.round((tot/50)*100);
+    const s1p  = Math.round((s1/30)*100);
+    const s2p  = Math.round((s2/20)*100);
+    const col  = DOMAIN_COLOR[dom]  || "#6b7280";
+    const icon = DOMAIN_ICON[dom]   || "💻";
+    const sub  = d.submittedAt?.toDate
+      ? d.submittedAt.toDate().toLocaleString("en-IN",{dateStyle:"short",timeStyle:"short"})
+      : "—";
+
+    const gdBadge = d.gdTotal !== undefined
+      ? `<span class="badge badge-gd">✓ ${d.gdTotal}/50</span>`
+      : (d.status === "Selected"
+          ? `<span class="badge badge-pending">⏳ Pending</span>`
+          : `<span style="font-size:.75rem;color:#94a3b8;">N/A</span>`);
+
+    const finalBadge = d.finalStatus
+      ? `<br><span class="badge ${d.finalStatus==="Final Selected"?"badge-final-sel":"badge-final-rej"}" style="margin-top:3px;">
+           ${d.finalStatus==="Final Selected"?"🏆 Final Sel":"❌ Final Rej"}
+         </span>`
+      : "";
+
+    html += `<tr>
+      <td style="color:var(--gray);font-weight:600;">${gi}</td>
+      <td style="font-weight:700;color:var(--navy);">${d.name||"—"}</td>
+      <td style="color:var(--blue);font-size:.8rem;">${d.email||"—"}</td>
+      <td style="font-size:.82rem;">${d.phone||"—"}</td>
+      <td style="font-size:.79rem;">${d.college||"—"}</td>
+      <td style="font-size:.79rem;">${d.dept||"—"}</td>
+      <td style="font-size:.79rem;">${d.year||"—"}</td>
+      <td>
+        <div class="score-pill">${s1}/30</div>
+        <div class="score-bar"><div class="score-fill" style="width:${s1p}%;background:#4e8ef7;"></div></div>
+      </td>
+      <td>
+        <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;
+                     font-size:.78rem;font-weight:700;background:${col}22;color:${col};border:1px solid ${col}44;">
+          ${icon} ${DOMAIN_LABEL[dom]||dom}
+        </span>
+      </td>
+      <td>
+        <div class="score-pill">${s2}/20</div>
+        <div class="score-bar"><div class="score-fill" style="width:${s2p}%;background:${col};"></div></div>
+      </td>
+      <td>
+        <div style="font-weight:800;font-size:1rem;color:var(--navy);">${tot}</div>
+        <div style="font-size:.72rem;color:var(--gray);">${pct}%</div>
+      </td>
+      <td>
+        <span class="badge ${d.status==="Selected"?"badge-pass":"badge-fail"}">
+          ${d.status==="Selected"?"✅ Cleared":"❌ Rejected"}
+        </span>${finalBadge}
+      </td>
+      <td>${gdBadge}</td>
+      <td style="font-size:.76rem;color:var(--gray);">${sub}</td>
+      <td><button class="expand-btn" onclick="toggleExpand('exp_${d.id}')">▼ View</button></td>
+    </tr>
+    <tr class="expand-row" id="exp_${d.id}">
+      <td colspan="15" style="padding:18px 22px;">
+        <div style="display:flex;flex-wrap:wrap;gap:16px;">
+          <div style="flex:1;min-width:240px;">
+            <p style="font-weight:700;color:var(--navy);margin-bottom:10px;">
+              🔍 ${d.name||"Candidate"} — Score Breakdown
+            </p>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+              ${sCard("📝 Aptitude", s1, 30, "#4e8ef7")}
+              ${sCard(icon+" "+(DOMAIN_LABEL[dom]||dom), s2, 20, col)}
+              ${sCard("🏆 Total", tot, 50, d.status==="Selected"?"#16a34a":"#dc2626")}
+              ${d.gdTotal !== undefined ? sCard("🎤 GD", d.gdTotal, 50, "#0891b2") : ""}
+            </div>
+          </div>
+          <div style="flex:1;min-width:200px;background:#f8faff;border-radius:10px;padding:14px;">
+            <p style="font-weight:700;color:var(--navy);margin-bottom:8px;">👤 Candidate Info</p>
+            <table style="width:100%;font-size:.83rem;">
+              ${iRow("College", d.college)}
+              ${iRow("Dept",    d.dept)}
+              ${iRow("Year",    d.year)}
+              ${iRow("Phone",   d.phone)}
+              ${iRow("Domain",  DOMAIN_LABEL[dom]||dom)}
+              ${d.gdTotal !== undefined ? iRow("GD Score", d.gdTotal+"/50 | Final: "+Math.round(d.finalScore||0)+"%") : ""}
+              ${d.finalStatus ? `<tr>
+                <td style="color:var(--gray);padding:3px 6px 3px 0;">Final Status</td>
+                <td style="font-weight:700;color:${d.finalStatus==="Final Selected"?"#16a34a":"#dc2626"};">
+                  ${d.finalStatus}
+                </td></tr>` : ""}
+            </table>
+            ${d.status==="Rejected"?`
+              <div style="margin-top:10px;padding:8px 12px;background:#ede9fe;border-radius:6px;font-size:.8rem;color:#7c3aed;font-weight:600;">
+                🎯 BDE Lead — <strong>${DOMAIN_COURSE[dom]||"Technical Course"}</strong>
+              </div>` : ""}
+          </div>
+        </div>
+      </td>
+    </tr>`;
+  });
+
+  html += `</tbody></table>`;
+  wrap.innerHTML = html;
+  renderPagination(tp);
+}
+
+function sCard(label, score, max, color) {
+  const pct = Math.round((score/max)*100);
+  const str = pct>=80?"Excellent":pct>=60?"Good":pct>=40?"Average":"Needs Work";
+  const sc  = pct>=80?"#15803d":pct>=60?"#0369a1":pct>=40?"#b45309":"#b91c1c";
+  return `<div style="background:#fff;border-radius:8px;padding:12px;text-align:center;border:1px solid #e0e7ff;">
+    <div style="font-size:.78rem;color:var(--gray);margin-bottom:4px;">${label}</div>
+    <div style="font-size:1.4rem;font-weight:800;color:var(--navy);">
+      ${score}<span style="font-size:.82rem;color:var(--gray);">/${max}</span>
+    </div>
+    <div style="font-size:.72rem;font-weight:700;color:${sc};margin-top:3px;">${str}</div>
+    <div style="height:5px;background:#e0e7ff;border-radius:4px;margin-top:8px;overflow:hidden;">
+      <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;"></div>
+    </div>
+  </div>`;
+}
+function iRow(l,v) {
+  return `<tr>
+    <td style="color:var(--gray);padding:3px 6px 3px 0;white-space:nowrap;">${l}</td>
+    <td style="font-weight:600;padding:3px 0;">${v||"—"}</td>
+  </tr>`;
+}
+
+/* ════════════════════════════════════════
+   PAGINATION
+════════════════════════════════════════ */
+function renderPagination(tp) {
+  const div = document.getElementById("pagination");
+  if (tp <= 1) { div.innerHTML=""; return; }
+  let html = `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?"disabled":""}>‹</button>`;
+  for (let p=1; p<=tp; p++) {
+    if (tp>7 && p>2 && p<tp-1 && Math.abs(p-currentPage)>1) {
+      if (p===3||p===tp-2) html+=`<span style="padding:0 4px;color:var(--gray);">…</span>`;
+      continue;
+    }
+    html+=`<button class="page-btn ${p===currentPage?"active":""}" onclick="goPage(${p})">${p}</button>`;
+  }
+  html+=`<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===tp?"disabled":""}>›</button>
+         <span class="page-info">Page ${currentPage}/${tp}</span>`;
+  div.innerHTML = html;
+}
+function goPage(p) {
+  const tp = Math.ceil(filtered.length/PAGE_SIZE);
+  if (p<1||p>tp) return;
+  currentPage = p;
+  renderTable();
+  document.querySelector(".table-wrap").scrollIntoView({behavior:"smooth"});
+}
+function toggleExpand(id) {
+  const row = document.getElementById(id);
+  if (!row) return;
+  const isOpen = row.style.display === "table-row";
+  document.querySelectorAll(".expand-row").forEach(r => r.style.display="none");
+  document.querySelectorAll(".expand-btn").forEach(b => b.textContent="▼ View");
+  if (!isOpen) {
+    row.style.display="table-row";
+    row.previousElementSibling.querySelector(".expand-btn").textContent="▲ Close";
+  }
+}
+
+/* ════════════════════════════════════════
+   GD TAB
+════════════════════════════════════════ */
+function renderGDTab() {
+  const selected = allData.filter(d => d.status === "Selected");
+  const gdScored = allData.filter(d => d.gdTotal !== undefined);
+  const finalSel = allData.filter(d => d.finalStatus === "Final Selected");
+
+  document.getElementById("pipeTotal").textContent    = allData.length;
+  document.getElementById("pipeAptPass").textContent  = selected.length;
+  document.getElementById("pipeGdScored").textContent = gdScored.length;
+  document.getElementById("pipeFinalSel").textContent = finalSel.length;
+
+  if (!selected.length) {
+    document.getElementById("gdTableBody").innerHTML =
+      `<div class="empty-state"><div class="icon">📭</div><p>No candidates cleared aptitude yet.</p></div>`;
+    return;
+  }
+
+  let html = `<table><thead><tr>
+    <th>#</th><th>Name</th><th>Email</th><th>College</th><th>Domain</th>
+    <th>Apt /50</th><th>GD /50</th>
+    <th>Comm.</th><th>Knowledge</th><th>Confidence</th><th>Teamwork</th><th>Clarity</th>
+    <th>Final %</th><th>Final Status</th>
+  </tr></thead><tbody>`;
+
+  selected.forEach((d,i) => {
+    const dom    = d.section2Domain || "—";
+    const col    = DOMAIN_COLOR[dom] || "#6b7280";
+    const icon   = DOMAIN_ICON[dom]  || "💻";
+    const apt    = d.totalScore || 0;
+    const hasGD  = d.gdTotal !== undefined;
+    const finSt  = d.finalStatus
+      ? (d.finalStatus==="Final Selected"
+          ? `<span class="badge badge-final-sel">🏆 Final Selected</span>`
+          : `<span class="badge badge-final-rej">❌ Final Rejected</span>`)
+      : `<span class="badge badge-pending">⏳ GD Pending</span>`;
+
+    html += `<tr>
+      <td style="color:var(--gray);">${i+1}</td>
+      <td style="font-weight:700;color:var(--navy);">${d.name||"—"}</td>
+      <td style="color:var(--blue);font-size:.79rem;">${d.email||"—"}</td>
+      <td style="font-size:.79rem;">${d.college||"—"}</td>
+      <td>
+        <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;
+                     font-size:.77rem;font-weight:700;background:${col}22;color:${col};border:1px solid ${col}44;">
+          ${icon} ${DOMAIN_LABEL[dom]||dom}
+        </span>
+      </td>
+      <td><strong>${apt}</strong>/50 <span style="color:var(--gray);font-size:.74rem;">(${Math.round((apt/50)*100)}%)</span></td>
+      <td style="font-weight:700;color:#0891b2;">${hasGD ? d.gdTotal+"/50" : "—"}</td>
+      <td>${hasGD ? (d.gdCommunication||0)+"/10" : "—"}</td>
+      <td>${hasGD ? (d.gdKnowledge   ||0)+"/10" : "—"}</td>
+      <td>${hasGD ? (d.gdConfidence  ||0)+"/10" : "—"}</td>
+      <td>${hasGD ? (d.gdTeamwork    ||0)+"/10" : "—"}</td>
+      <td>${hasGD ? (d.gdClarity     ||0)+"/10" : "—"}</td>
+      <td style="font-weight:700;">${hasGD ? Math.round(d.finalScore||0)+"%" : "—"}</td>
+      <td>${finSt}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table>`;
+  document.getElementById("gdTableBody").innerHTML = html;
+}
+
+/* ════════════════════════════════════════
+   CHARTS
+════════════════════════════════════════ */
+function renderCharts() {
+  const dColors = ALL_DOMAINS.map(d => DOMAIN_COLOR[d]);
+  const dLabels = ALL_DOMAINS.map(d => DOMAIN_LABEL[d]);
+
+  // Score distribution
+  const bkts = [0,0,0,0,0,0];
+  allData.forEach(d => {
+    const s = d.totalScore||0;
+    if(s<=10)bkts[0]++; else if(s<=20)bkts[1]++;
+    else if(s<=29)bkts[2]++; else if(s<=34)bkts[3]++;
+    else if(s<=44)bkts[4]++; else bkts[5]++;
+  });
+  mkChart("scoreChart","bar",
+    {labels:["0–10","11–20","21–29","30–34","35–44","45–50"],
+     datasets:[{label:"Students",data:bkts,
+       backgroundColor:["#fee2e2","#fecaca","#fde68a","#fde68a","#bbf7d0","#86efac"],
+       borderColor:["#dc2626","#dc2626","#d97706","#d97706","#16a34a","#16a34a"],borderWidth:1.5}]},
+    {scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},plugins:{legend:{display:false}}});
+
+  // Domain doughnut
+  const dc = ALL_DOMAINS.map(d => allData.filter(r=>r.section2Domain===d).length);
+  mkChart("domainChart","doughnut",
+    {labels:ALL_DOMAINS.map((d,i)=>DOMAIN_ICON[d]+" "+dLabels[i]),
+     datasets:[{data:dc,backgroundColor:dColors.map(c=>c+"bb"),borderColor:dColors,borderWidth:2}]},
+    {plugins:{legend:{position:"bottom"}}});
+
+  // Avg section scores
+  const n   = allData.length || 1;
+  const aS1 = (allData.reduce((a,d)=>a+(d.section1Score||0),0)/n).toFixed(1);
+  const aS2 = (allData.reduce((a,d)=>a+(d.section2Score||0),0)/n).toFixed(1);
+  mkChart("sectionChart","bar",
+    {labels:["Aptitude (max 30)","Technical (max 20)"],
+     datasets:[{label:"Avg Score",data:[aS1,aS2],
+       backgroundColor:["#4e8ef7aa","#f59e0baa"],
+       borderColor:["#4e8ef7","#f59e0b"],borderWidth:2,borderRadius:6}]},
+    {plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}});
+
+  // Top colleges
+  const cc = {};
+  allData.forEach(d=>{if(d.college)cc[d.college]=(cc[d.college]||0)+1;});
+  const topC = Object.entries(cc).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  mkChart("collegeChart","bar",
+    {labels:topC.map(c=>c[0].length>18?c[0].slice(0,18)+"…":c[0]),
+     datasets:[{label:"Candidates",data:topC.map(c=>c[1]),
+       backgroundColor:"#4e8ef7aa",borderColor:"#4e8ef7",borderWidth:2,borderRadius:5}]},
+    {plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}},x:{ticks:{font:{size:9}}}}});
+
+  // Pass/fail per domain
+  const selD = ALL_DOMAINS.map(d=>allData.filter(r=>r.section2Domain===d&&r.status==="Selected").length);
+  const rejD = ALL_DOMAINS.map(d=>allData.filter(r=>r.section2Domain===d&&r.status==="Rejected").length);
+  mkChart("domainStatusChart","bar",
+    {labels:dLabels,
+     datasets:[
+       {label:"Cleared",data:selD,backgroundColor:"#16a34a88",borderColor:"#16a34a",borderWidth:2,borderRadius:4},
+       {label:"Rejected",data:rejD,backgroundColor:"#dc262688",borderColor:"#dc2626",borderWidth:2,borderRadius:4}
+     ]},
+    {plugins:{legend:{position:"top"}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}});
+
+  // Avg tech score per domain
+  const aS2D = ALL_DOMAINS.map(d=>{
+    const sub = allData.filter(r=>r.section2Domain===d);
+    return sub.length ? (sub.reduce((a,r)=>a+(r.section2Score||0),0)/sub.length).toFixed(1) : 0;
+  });
+  mkChart("domainAvgChart","bar",
+    {labels:dLabels,
+     datasets:[{label:"Avg Tech /20",data:aS2D,
+       backgroundColor:dColors.map(c=>c+"88"),borderColor:dColors,borderWidth:2,borderRadius:6}]},
+    {plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:20}}});
+}
+
+function mkChart(id,type,data,options) {
+  if (chartRefs[id]) chartRefs[id].destroy();
+  chartRefs[id] = new Chart(
+    document.getElementById(id).getContext("2d"),
+    {type, data, options:{responsive:true,...options}}
+  );
+}
+
+/* ════════════════════════════════════════
+   BDE TAB
+════════════════════════════════════════ */
+function renderBDE() {
+  const rejected = allData.filter(d => d.status === "Rejected");
+  const div      = document.getElementById("bdeContent");
+
+  if (!rejected.length) {
+    div.innerHTML = `<div class="empty-state"><div class="icon">🎉</div><p>No rejected candidates yet!</p></div>`;
+    return;
+  }
+
+  let html = `<div style="background:#fff;border-radius:12px;padding:16px 22px;margin-bottom:18px;
+                  box-shadow:0 2px 12px rgba(0,0,0,.07);">
+    <p style="font-size:.9rem;color:var(--gray);">
+      Total BDE Leads: <strong style="color:var(--bde);font-size:1.1rem;">${rejected.length}</strong>
+    </p>
+  </div>`;
+
+  ALL_DOMAINS.forEach(dom => {
+    const group  = rejected.filter(d => d.section2Domain === dom);
+    if (!group.length) return;
+    const col    = DOMAIN_COLOR[dom];
+    const icon   = DOMAIN_ICON[dom];
+    const label  = DOMAIN_LABEL[dom];
+    const course = DOMAIN_COURSE[dom];
+    const avgS2  = (group.reduce((a,d)=>a+(d.section2Score||0),0)/group.length).toFixed(1);
+
+    html += `<div class="domain-group">
+      <div class="domain-group-header" style="background:linear-gradient(135deg,${col},${col}cc);">
+        <span style="font-size:1.5rem;">${icon}</span>
+        <div style="flex:1;">
+          <div>${label} — ${group.length} Lead${group.length>1?"s":""}</div>
+          <div style="font-size:.78rem;opacity:.85;font-weight:400;">Course: ${course} | Avg Tech: ${avgS2}/20</div>
+        </div>
+        <button onclick="exportBDEDomain('${dom}')"
+          style="padding:6px 14px;background:#fff;color:${col};border:none;border-radius:6px;font-weight:700;font-size:.8rem;cursor:pointer;">
+          ⬇ Export
+        </button>
+      </div>
+      <div class="domain-group-body" style="overflow-x:auto;"><table>
+        <thead><tr>
+          <th>#</th><th>Name</th><th>Email</th><th>Phone</th>
+          <th>College</th><th>Dept</th><th>Year</th>
+          <th>Apt/30</th><th>Tech/20</th><th>Total/50</th><th>Suggested Course</th>
+        </tr></thead><tbody>`;
+
+    group.forEach((d,i) => {
+      const s2p = Math.round(((d.section2Score||0)/20)*100);
+      const str = s2p>=70?"Strong":s2p>=50?"Moderate":"Beginner";
+      const sc  = s2p>=70?"#15803d":s2p>=50?"#b45309":"#b91c1c";
+      html += `<tr>
+        <td style="color:var(--gray);">${i+1}</td>
+        <td style="font-weight:700;">${d.name||"—"}</td>
+        <td style="color:var(--blue);font-size:.79rem;">${d.email||"—"}</td>
+        <td style="font-size:.81rem;">${d.phone||"—"}</td>
+        <td style="font-size:.79rem;">${d.college||"—"}</td>
+        <td style="font-size:.79rem;">${d.dept||"—"}</td>
+        <td style="font-size:.79rem;">${d.year||"—"}</td>
+        <td><strong>${d.section1Score||0}</strong>/30</td>
+        <td><strong>${d.section2Score||0}</strong>/20
+          <span style="font-size:.71rem;font-weight:700;color:${sc};">(${str})</span>
+        </td>
+        <td><strong>${d.totalScore||0}</strong>/50</td>
+        <td style="font-size:.78rem;color:#7c3aed;font-weight:600;">${course}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table></div></div>`;
+  });
+
+  div.innerHTML = html;
+}
+
+/* ════════════════════════════════════════
+   EXPORT FUNCTIONS
+════════════════════════════════════════ */
+function exportBDEDomain(domain) {
+  const group = allData.filter(d => d.status==="Rejected" && d.section2Domain===domain);
+  if (!group.length) { alert("No data."); return; }
+  const h = ["#","Name","Email","Phone","College","Dept","Year","Apt /30","Tech /20","Total /50","Course"];
+  const r = group.map((d,i) => [i+1,d.name||"",d.email||"",d.phone||"",d.college||"",d.dept||"",d.year||"",d.section1Score||0,d.section2Score||0,d.totalScore||0,DOMAIN_COURSE[domain]||""]);
+  dlCSV([h,...r], `BDE_${domain}_Leads.csv`);
+}
+
+function exportGDCSV() {
+  const sel = allData.filter(d => d.status === "Selected");
+  if (!sel.length) { alert("No GD candidates."); return; }
+  const h = ["#","Name","Email","Phone","College","Domain","Aptitude/50","GD Total/50","Comm","Knowledge","Confidence","Teamwork","Clarity","Final %","Final Status"];
+  const r = sel.map((d,i) => [i+1,d.name||"",d.email||"",d.phone||"",d.college||"",DOMAIN_LABEL[d.section2Domain]||d.section2Domain||"",d.totalScore||0,d.gdTotal!==undefined?d.gdTotal:"",d.gdCommunication||"",d.gdKnowledge||"",d.gdConfidence||"",d.gdTeamwork||"",d.gdClarity||"",d.finalScore!==undefined?Math.round(d.finalScore)+"%":"",d.finalStatus||""]);
+  dlCSV([h,...r], "Electrobtech_GD_Results.csv");
+}
+
+function exportCSV() {
+  if (!allData.length) { alert("No data."); return; }
+  const h = ["#","Name","Email","Phone","College","Dept","Year","Apt /30","Domain","Tech /20","Total /50","Pct","Apt Status","GD /50","Final %","Final Status","Submitted"];
+  const r = allData.map((d,i) => {
+    const sub = d.submittedAt?.toDate ? d.submittedAt.toDate().toLocaleString("en-IN") : "";
+    return [i+1,d.name||"",d.email||"",d.phone||"",d.college||"",d.dept||"",d.year||"",d.section1Score||0,DOMAIN_LABEL[d.section2Domain]||d.section2Domain||"",d.section2Score||0,d.totalScore||0,(d.totalPct||0)+"%",d.status||"",d.gdTotal!==undefined?d.gdTotal:"",d.finalScore!==undefined?Math.round(d.finalScore)+"%":"",d.finalStatus||"",sub];
+  });
+  dlCSV([h,...r], `Electrobtech_Results_${new Date().toLocaleDateString("en-IN").replace(/\//g,"-")}.csv`);
+}
+
+function dlCSV(rows, filename) {
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const a   = document.createElement("a");
+  a.href    = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
+  a.download= filename;
+  a.click();
+}
+</script>
+</body>
+</html>

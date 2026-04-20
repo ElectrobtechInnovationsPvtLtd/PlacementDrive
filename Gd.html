@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Electrobtech – GD Scoring Panel</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f9ff; min-height: 100vh; }
+
+/* ── LOGIN ── */
+#loginScreen {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0d1b6e, #0891b2);
+}
+.login-card {
+  background: #fff; border-radius: 16px; padding: 40px 36px;
+  width: 100%; max-width: 400px; text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+}
+.login-card h2 { color: #0d1b6e; font-size: 1.5rem; margin: 10px 0 4px; }
+.login-card p  { color: #6b7280; font-size: .85rem; margin-bottom: 28px; }
+.login-card input {
+  width: 100%; padding: 12px 14px; margin-bottom: 14px;
+  border: 2px solid #c7d2fe; border-radius: 8px; font-size: .95rem; outline: none;
+}
+.login-card input:focus { border-color: #0891b2; }
+.login-card button {
+  width: 100%; padding: 13px; background: #0891b2; color: #fff;
+  border: none; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer;
+}
+.login-card button:hover { background: #0e7490; }
+#loginErr { color: #dc2626; font-size: .85rem; margin-top: 10px; }
+
+/* ── HEADER ── */
+#app { display: none; }
+.top-bar {
+  background: linear-gradient(135deg, #0d1b6e, #0891b2);
+  padding: 14px 28px; display: flex; align-items: center; gap: 14px;
+  position: sticky; top: 0; z-index: 99;
+  box-shadow: 0 3px 14px rgba(0,0,0,.25);
+}
+.top-bar img  { height: 42px; border-radius: 6px; }
+.top-bar h1   { color: #fff; font-size: 1.1rem; font-weight: 800; }
+.top-bar span { color: #a5f3fc; font-size: .78rem; }
+.top-bar-right { margin-left: auto; display: flex; gap: 8px; }
+.tbtn {
+  padding: 7px 15px; border-radius: 7px; font-size: .82rem;
+  font-weight: 700; cursor: pointer; border: none;
+}
+.tbtn-white  { background: #fff; color: #0d1b6e; }
+.tbtn-orange { background: #ff6600; color: #fff; }
+
+/* ── BODY ── */
+.page { max-width: 960px; margin: 0 auto; padding: 28px 16px 60px; }
+
+/* ── STAT STRIP ── */
+.stats {
+  display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 22px;
+}
+.stat {
+  flex: 1; min-width: 130px; background: #fff; border-radius: 12px;
+  padding: 16px 14px; text-align: center;
+  box-shadow: 0 3px 12px rgba(13,27,110,.08);
+  border-top: 4px solid #c7d2fe;
+}
+.stat.blue  { border-top-color: #0891b2; }
+.stat.green { border-top-color: #16a34a; }
+.stat.amber { border-top-color: #f59e0b; }
+.stat.red   { border-top-color: #dc2626; }
+.stat .num  { font-size: 1.9rem; font-weight: 800; color: #0d1b6e; }
+.stat.blue  .num { color: #0891b2; }
+.stat.green .num { color: #16a34a; }
+.stat.amber .num { color: #d97706; }
+.stat.red   .num { color: #dc2626; }
+.stat .lbl  { font-size: .76rem; color: #6b7280; margin-top: 3px; }
+
+/* ── SEARCH ── */
+.search-bar {
+  background: #fff; border-radius: 10px; padding: 12px 16px;
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  margin-bottom: 18px; box-shadow: 0 3px 10px rgba(13,27,110,.07);
+}
+.search-bar input, .search-bar select {
+  padding: 8px 12px; border: 2px solid #c7d2fe;
+  border-radius: 7px; font-size: .87rem; outline: none;
+}
+.search-bar input:focus, .search-bar select:focus { border-color: #0891b2; }
+.search-bar input { flex: 1; min-width: 160px; }
+#countBadge { font-size: .82rem; color: #6b7280; font-weight: 600; margin-left: auto; }
+
+/* ── CANDIDATE TABLE ── */
+.cand-list { display: flex; flex-direction: column; gap: 10px; }
+
+.cand-row {
+  background: #fff; border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(13,27,110,.09);
+  border-left: 5px solid #0891b2; overflow: hidden;
+}
+.cand-row.done   { border-left-color: #16a34a; }
+
+/* header row */
+.crow-head {
+  padding: 14px 18px; display: flex; align-items: center;
+  gap: 12px; flex-wrap: wrap; cursor: pointer;
+}
+.crow-head:hover { background: #f8faff; }
+.avatar {
+  width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, #0891b2, #0d1b6e);
+  color: #fff; display: flex; align-items: center;
+  justify-content: center; font-weight: 800; font-size: 1rem;
+}
+.cinfo { flex: 1; min-width: 160px; }
+.cinfo h3 { color: #0d1b6e; font-size: .97rem; font-weight: 700; margin-bottom: 2px; }
+.cinfo p  { color: #6b7280; font-size: .8rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  padding: 3px 10px; border-radius: 16px;
+  font-size: .73rem; font-weight: 700;
+}
+.chip-apt    { background: #e0f2fe; color: #0369a1; }
+.chip-domain { background: #f0fdf4; color: #15803d; }
+.chip-gd     { background: #cffafe; color: #0e7490; }
+.badge {
+  padding: 4px 12px; border-radius: 18px;
+  font-size: .75rem; font-weight: 700; white-space: nowrap;
+}
+.badge-pending { background: #fef3c7; color: #92400e; }
+.badge-scored  { background: #dcfce7; color: #15803d; }
+
+/* SCORE FORM (hidden by default) */
+.score-form {
+  display: none; padding: 20px 22px;
+  border-top: 1px solid #e0f2fe; background: #f8fcff;
+}
+.score-form h4 { color: #0e7490; font-size: .95rem; font-weight: 800; margin-bottom: 16px; }
+
+.fields-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px; margin-bottom: 16px;
+}
+.field label {
+  display: block; font-size: .82rem; font-weight: 700;
+  color: #0d1b6e; margin-bottom: 5px;
+}
+.field input[type="number"] {
+  width: 100%; padding: 10px 12px;
+  border: 2px solid #c7d2fe; border-radius: 8px;
+  font-size: 1rem; font-weight: 700; text-align: center; outline: none;
+  color: #0d1b6e;
+}
+.field input[type="number"]:focus { border-color: #0891b2; }
+.field .hint { font-size: .72rem; color: #9ca3af; margin-top: 3px; }
+
+/* total bar */
+.total-bar {
+  background: #fff; border: 2px solid #0891b2; border-radius: 10px;
+  padding: 12px 18px; display: flex; justify-content: space-between;
+  align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;
+}
+.total-bar .tl  { color: #0e7490; font-weight: 700; font-size: .9rem; }
+.total-bar .tv  { font-size: 1.7rem; font-weight: 800; color: #0891b2; }
+
+/* notes */
+.notes-box {
+  width: 100%; padding: 10px 12px;
+  border: 2px solid #c7d2fe; border-radius: 8px; font-size: .88rem;
+  resize: vertical; min-height: 52px; outline: none;
+  font-family: inherit; margin-bottom: 14px;
+}
+.notes-box:focus { border-color: #0891b2; }
+
+/* action btns */
+.form-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn-save {
+  padding: 11px 28px; background: #0891b2; color: #fff;
+  border: none; border-radius: 8px; font-weight: 700;
+  font-size: .93rem; cursor: pointer;
+}
+.btn-save:hover    { background: #0e7490; }
+.btn-save:disabled { opacity: .5; cursor: not-allowed; }
+.btn-cancel {
+  padding: 11px 20px; background: #fff; color: #0d1b6e;
+  border: 2px solid #c7d2fe; border-radius: 8px;
+  font-weight: 700; font-size: .88rem; cursor: pointer;
+}
+
+/* ── LOADING ── */
+#loader {
+  display: none; position: fixed; inset: 0;
+  background: rgba(13,27,110,.7); z-index: 999;
+  align-items: center; justify-content: center; flex-direction: column; color: #fff;
+}
+#loader.on { display: flex; }
+.spin {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 5px solid rgba(255,255,255,.3);
+  border-top-color: #fff; animation: sp .75s linear infinite; margin-bottom: 12px;
+}
+@keyframes sp { to { transform: rotate(360deg); } }
+
+/* ── EMPTY ── */
+.empty { padding: 48px 20px; text-align: center; color: #6b7280; }
+.empty .ico { font-size: 3rem; margin-bottom: 10px; }
+
+footer {
+  background: #0d1b6e; color: #a5c0ff;
+  text-align: center; padding: 12px; font-size: .77rem;
+}
+footer strong { color: #ff6600; }
+
+@media(max-width:600px) {
+  .top-bar { padding: 10px 14px; }
+  .page { padding: 14px 10px 50px; }
+  .score-form { padding: 14px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div style="font-size:2.8rem;">🎤</div>
+    <h2>GD Scoring Panel</h2>
+    <p>Electrobtech Innovations Pvt Ltd<br>Enter your HR credentials to continue</p>
+    <input type="text"     id="uname" placeholder="Username" autocomplete="off">
+    <input type="password" id="upass" placeholder="Password"
+           onkeypress="if(event.key==='Enter') login()">
+    <button onclick="login()">🔓 Login</button>
+    <div id="loginErr"></div>
+  </div>
+</div>
+
+<!-- ══ MAIN APP ══ -->
+<div id="app">
+
+  <div class="top-bar">
+    <img src="./Logo.jpeg" alt="logo" onerror="this.style.display='none'">
+    <div>
+      <h1>GD Scoring Panel</h1>
+      <span>Campus Hiring 2026 — HR Evaluator</span>
+    </div>
+    <div class="top-bar-right">
+      <button class="tbtn tbtn-white"  onclick="loadData()">🔄 Refresh</button>
+      <button class="tbtn tbtn-orange" onclick="exportCSV()">⬇ Export CSV</button>
+      <button class="tbtn tbtn-white"  onclick="logout()">🚪 Logout</button>
+    </div>
+  </div>
+
+  <div id="loader"><div class="spin"></div><p id="loaderMsg">Loading…</p></div>
+
+  <div class="page">
+
+    <!-- stats -->
+    <div class="stats">
+      <div class="stat blue">
+        <div class="num" id="sTotal">—</div>
+        <div class="lbl">Total GD Candidates</div>
+      </div>
+      <div class="stat amber">
+        <div class="num" id="sPending">—</div>
+        <div class="lbl">Pending Scoring</div>
+      </div>
+      <div class="stat green">
+        <div class="num" id="sScored">—</div>
+        <div class="lbl">GD Scored</div>
+      </div>
+    </div>
+
+    <!-- info box -->
+    <div style="background:#fff;border:1.5px solid #a5f3fc;border-radius:10px;
+                padding:12px 18px;margin-bottom:16px;font-size:.85rem;
+                color:#0e7490;line-height:1.8;">
+      <strong>📋 Instructions:</strong>
+      Click on any candidate card to open the GD scoring form.
+      Enter marks <strong>0 – 10</strong> for each of the 5 criteria (max GD total = 50).
+      Click <strong>Save Score</strong> — done!
+    </div>
+
+    <!-- search / filter -->
+    <div class="search-bar">
+      <input  id="srch"    type="text"  placeholder="🔍 Search by name…" oninput="render()">
+      <select id="fStatus" onchange="render()">
+        <option value="all">All Candidates</option>
+        <option value="pending">⏳ Pending</option>
+        <option value="scored">✅ Scored</option>
+      </select>
+      <select id="fDomain" onchange="render()">
+        <option value="all">All Domains</option>
+        <option value="Java">Java</option>
+        <option value="Python">Python</option>
+        <option value="C">C Programming</option>
+        <option value="AI">ML & AI</option>
+        <option value="DataAnalytics">Data Analytics</option>
+      </select>
+      <span id="countBadge"></span>
+    </div>
+
+    <!-- candidate list -->
+    <div class="cand-list" id="candList"></div>
+
+  </div>
+
+  <footer>© 2026 <strong>Electrobtech Innovations Pvt Ltd</strong> &nbsp;|&nbsp; GD Scoring Panel</footer>
+</div>
+
+<script>
+/* ══ FIREBASE ══ */
+firebase.initializeApp({
+  apiKey:            "AIzaSyAHq9I5te9NPTXTIP0U1dJwmE8b0All0Fw",
+  authDomain:        "test-mode-aa4f8.firebaseapp.com",
+  projectId:         "test-mode-aa4f8",
+  storageBucket:     "test-mode-aa4f8.appspot.com",
+  messagingSenderId: "769528632193",
+  appId:             "1:769528632193:web:3b3d1dcb1009c6f7b38e80"
+});
+const db = firebase.firestore();
+
+/* ══ CREDENTIALS ══ */
+const CREDS = { admin:"Electrobtech@2026", electrobtech:"Admin@Campus2026" };
+
+/* ══ DOMAIN LABELS ══ */
+const DOM_LABEL = {
+  Java:"Java", Python:"Python", C:"C Programming",
+  AI:"ML & AI", DataAnalytics:"Data Analytics"
+};
+const DOM_ICON = {
+  Java:"☕", Python:"🐍", C:"⚙️", AI:"🤖", DataAnalytics:"📊"
+};
+
+/* ══ GD CRITERIA (5 fields, each 0–10) ══ */
+const CRITERIA = [
+  { key:"gdCommunication", label:"Communication",      hint:"Clarity & fluency" },
+  { key:"gdKnowledge",     label:"Subject Knowledge",  hint:"Domain accuracy" },
+  { key:"gdConfidence",    label:"Confidence",         hint:"Composure & assertiveness" },
+  { key:"gdTeamwork",      label:"Team Participation", hint:"Listening & collaboration" },
+  { key:"gdClarity",       label:"Clarity of Thought", hint:"Structured thinking" },
+];
+
+let allData    = [];  // all selected candidates
+let openCardId = null;
+
+/* ══ LOGIN ══ */
+function login() {
+  const u = document.getElementById("uname").value.trim().toLowerCase();
+  const p = document.getElementById("upass").value;
+  if (CREDS[u] && CREDS[u] === p) {
+    sessionStorage.setItem("gd_auth","1");
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    loadData();
+  } else {
+    document.getElementById("loginErr").textContent = "❌ Invalid username or password.";
+    document.getElementById("upass").value = "";
+  }
+}
+function logout() { sessionStorage.removeItem("gd_auth"); location.reload(); }
+
+// auto-login if session exists
+if (sessionStorage.getItem("gd_auth") === "1") {
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  loadData();
+}
+
+/* ══ LOAD DATA FROM FIREBASE ══ */
+async function loadData() {
+  showLoader("Loading candidates from Firebase…");
+  try {
+    // Fetch only aptitude-cleared (Selected) candidates
+    const snap = await db.collection("campus_results_2026")
+      .where("status", "==", "Selected")
+      .get();
+
+    allData = [];
+    snap.forEach(d => allData.push({ id: d.id, ...d.data() }));
+
+    // Sort: pending first, then by name
+    allData.sort((a, b) => {
+      const aScored = a.gdTotal !== undefined ? 1 : 0;
+      const bScored = b.gdTotal !== undefined ? 1 : 0;
+      if (aScored !== bScored) return aScored - bScored;
+      return (a.name || "").localeCompare(b.name || "");
+    });
+
+    updateStats();
+    render();
+  } catch(e) {
+    document.getElementById("candList").innerHTML =
+      `<div class="empty"><div class="ico">⚠️</div>
+       <p><strong>Firebase Error:</strong> ${e.message}</p></div>`;
+  } finally {
+    hideLoader();
+  }
+}
+
+/* ══ STATS ══ */
+function updateStats() {
+  const total   = allData.length;
+  const scored  = allData.filter(d => d.gdTotal !== undefined).length;
+  const pending = total - scored;
+  document.getElementById("sTotal").textContent   = total;
+  document.getElementById("sPending").textContent = pending;
+  document.getElementById("sScored").textContent  = scored;
+}
+
+/* ══ RENDER CANDIDATE LIST ══ */
+function render() {
+  const srch    = document.getElementById("srch").value.toLowerCase().trim();
+  const fStatus = document.getElementById("fStatus").value;
+  const fDomain = document.getElementById("fDomain").value;
+
+  const list = allData.filter(d => {
+    if (srch   && !(d.name||"").toLowerCase().includes(srch)) return false;
+    if (fDomain !== "all" && d.section2Domain !== fDomain)    return false;
+    const scored = d.gdTotal !== undefined;
+    if (fStatus === "pending" &&  scored) return false;
+    if (fStatus === "scored"  && !scored) return false;
+    return true;
+  });
+
+  document.getElementById("countBadge").textContent =
+    `${list.length} candidate${list.length !== 1 ? "s" : ""}`;
+
+  if (!list.length) {
+    document.getElementById("candList").innerHTML =
+      `<div class="empty"><div class="ico">📭</div>
+       <p>${allData.length === 0
+         ? "No aptitude-cleared candidates found in Firebase."
+         : "No candidates match your filter."}</p></div>`;
+    return;
+  }
+
+  document.getElementById("candList").innerHTML =
+    list.map(d => buildCard(d)).join("");
+}
+
+/* ══ BUILD ONE CANDIDATE CARD ══ */
+function buildCard(d) {
+  const apt      = d.totalScore || 0;
+  const aptPct   = Math.round((apt / 50) * 100);
+  const initials = (d.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+  const isScored = d.gdTotal !== undefined;
+  const domIcon  = DOM_ICON[d.section2Domain]  || "💻";
+  const domLbl   = DOM_LABEL[d.section2Domain] || d.section2Domain || "—";
+
+  const badge = isScored
+    ? `<span class="badge badge-scored">✅ GD Scored: ${d.gdTotal}/50</span>`
+    : `<span class="badge badge-pending">⏳ Pending</span>`;
+
+  // Build input fields for each criterion
+  const fields = CRITERIA.map(c => {
+    const val = isScored ? (d[c.key] ?? 0) : "";
+    return `<div class="field">
+      <label>${c.label}</label>
+      <input type="number" id="${c.key}_${d.id}"
+             min="0" max="10" value="${val}"
+             placeholder="0–10"
+             oninput="recalc('${d.id}')">
+      <div class="hint">${c.hint}</div>
+    </div>`;
+  }).join("");
+
+  return `
+  <div class="cand-row ${isScored?"done":""}" id="row_${d.id}">
+
+    <!-- Header — click to toggle form -->
+    <div class="crow-head" onclick="toggle('${d.id}')">
+      <div class="avatar">${initials}</div>
+      <div class="cinfo">
+        <h3>${d.name || "—"}</h3>
+        <p>${d.email||"—"} &nbsp;|&nbsp; ${d.phone||"—"} &nbsp;|&nbsp; ${d.college||"—"}</p>
+      </div>
+      <div class="chips">
+        <span class="chip chip-apt">Aptitude: ${apt}/50 (${aptPct}%)</span>
+        <span class="chip chip-domain">${domIcon} ${domLbl}</span>
+        ${isScored ? `<span class="chip chip-gd">GD: ${d.gdTotal}/50</span>` : ""}
+      </div>
+      <div>${badge}</div>
+    </div>
+
+    <!-- Scoring form -->
+    <div class="score-form" id="form_${d.id}">
+      <h4>✏️ Enter GD Marks for ${d.name || "this candidate"}</h4>
+
+      <div class="fields-grid">${fields}</div>
+
+      <!-- Total display -->
+      <div class="total-bar">
+        <div class="tl">GD Total Score (max 50)</div>
+        <div><span class="tv" id="tot_${d.id}">${isScored ? d.gdTotal : 0}</span><span style="color:#6b7280;"> / 50</span></div>
+      </div>
+
+      <!-- Notes -->
+      <textarea class="notes-box" id="notes_${d.id}"
+        placeholder="Optional: notes about this candidate's GD performance…">${d.gdNotes||""}</textarea>
+
+      <!-- Buttons -->
+      <div class="form-btns">
+        <button class="btn-save" id="savebtn_${d.id}"
+                onclick="save('${d.id}', ${apt})">
+          💾 Save GD Score
+        </button>
+        <button class="btn-cancel" onclick="toggle('${d.id}')">Cancel</button>
+      </div>
+    </div>
+
+  </div>`;
+}
+
+/* ══ RECALCULATE TOTAL LIVE ══ */
+function recalc(id) {
+  let total = 0;
+  CRITERIA.forEach(c => {
+    const el = document.getElementById(`${c.key}_${id}`);
+    if (el) {
+      let v = parseInt(el.value) || 0;
+      if (v > 10) { v = 10; el.value = 10; }
+      if (v < 0)  { v = 0;  el.value = 0;  }
+      total += v;
+    }
+  });
+  const el = document.getElementById(`tot_${id}`);
+  if (el) el.textContent = total;
+}
+
+/* ══ TOGGLE FORM OPEN / CLOSE ══ */
+function toggle(id) {
+  // Close any open form first
+  document.querySelectorAll(".score-form").forEach(f => f.style.display = "none");
+  const form = document.getElementById(`form_${id}`);
+  if (!form) return;
+  if (openCardId === id) {
+    openCardId = null;
+    return;
+  }
+  form.style.display = "block";
+  form.scrollIntoView({ behavior:"smooth", block:"nearest" });
+  openCardId = id;
+}
+
+/* ══ SAVE GD SCORE TO FIREBASE ══ */
+async function save(docId, apt) {
+  // Validate all fields filled
+  let gdTotal = 0;
+  const scores = {};
+  let hasEmpty = false;
+
+  CRITERIA.forEach(c => {
+    const el  = document.getElementById(`${c.key}_${docId}`);
+    const val = el ? el.value : "";
+    if (val === "" || val === null) { hasEmpty = true; return; }
+    const num = parseInt(val);
+    scores[c.key] = num;
+    gdTotal += num;
+  });
+
+  if (hasEmpty) {
+    alert("⚠️ Please enter marks for all 5 criteria before saving.");
+    return;
+  }
+
+  const notes  = document.getElementById(`notes_${docId}`)?.value || "";
+  const btn    = document.getElementById(`savebtn_${docId}`);
+  if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+
+  const updatePayload = {
+    ...scores,
+    gdTotal,
+    gdNotes:    notes,
+    gdStatus:   "GD_SCORED",
+    gdScoredAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  showLoader("Saving GD score…");
+  try {
+    await db.collection("campus_results_2026").doc(docId).update(updatePayload);
+
+    // Update local data
+    const idx = allData.findIndex(d => d.id === docId);
+    if (idx !== -1) Object.assign(allData[idx], updatePayload);
+
+    updateStats();
+    render();
+    alert(`✅ GD Score Saved!\n\n${allData.find(d=>d.id===docId)?.name || "Candidate"}: ${gdTotal}/50`);
+  } catch(e) {
+    alert("❌ Error saving:\n" + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = "💾 Save GD Score"; }
+  } finally {
+    hideLoader();
+  }
+}
+
+/* ══ EXPORT CSV ══ */
+function exportCSV() {
+  if (!allData.length) { alert("No data to export."); return; }
+
+  const h = [
+    "#","Name","Email","Phone","College","Dept","Year","Domain",
+    "Aptitude/50","Apt%",
+    "GD Communication","GD Knowledge","GD Confidence","GD Teamwork","GD Clarity",
+    "GD Total/50","GD%","Notes","Scored At"
+  ];
+
+  const rows = allData.map((d,i) => {
+    const apt    = d.totalScore || 0;
+    const aptPct = Math.round((apt/50)*100);
+    const gdPct  = d.gdTotal !== undefined ? Math.round((d.gdTotal/50)*100) : "";
+    let   at     = "";
+    if (d.gdScoredAt?.toDate) {
+      at = d.gdScoredAt.toDate().toLocaleString("en-IN");
+    }
+    return [
+      i+1, d.name||"", d.email||"", d.phone||"", d.college||"",
+      d.dept||"", d.year||"",
+      DOM_LABEL[d.section2Domain] || d.section2Domain || "",
+      apt, aptPct+"%",
+      d.gdCommunication ?? "", d.gdKnowledge ?? "",
+      d.gdConfidence    ?? "", d.gdTeamwork  ?? "", d.gdClarity ?? "",
+      d.gdTotal ?? "", gdPct !== "" ? gdPct+"%" : "",
+      d.gdNotes||"", at
+    ];
+  });
+
+  const csv = [h,...rows]
+    .map(r => r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(","))
+    .join("\n");
+
+  const a      = document.createElement("a");
+  a.href       = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
+  a.download   = `GD_Scores_${new Date().toLocaleDateString("en-IN").replace(/\//g,"-")}.csv`;
+  a.click();
+}
+
+/* ══ LOADER HELPERS ══ */
+function showLoader(msg) {
+  document.getElementById("loaderMsg").textContent = msg || "Loading…";
+  document.getElementById("loader").classList.add("on");
+}
+function hideLoader() {
+  document.getElementById("loader").classList.remove("on");
+}
+</script>
+</body>
+</html>
